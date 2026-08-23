@@ -49,17 +49,27 @@
         "https://www.bilibili.com/list/*",
         "https://m.bilibili.com/video/*"
       ],
-      "js": ["src/content/content.js"],
+      "js": ["src/content/content-boot.js"],
       "css": ["src/content/panel.css"],
-      "run_at": "document_idle",
-      "type": "module"
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
         "src/popup/popup.html",
-        "public/icons/icon128.png"
+        "public/icons/icon128.png",
+        "src/content/content.js",
+        "src/content/panel.js",
+        "src/features/subtitle/parser.js",
+        "src/features/subtitle/cleaner.js",
+        "src/features/video-context/detect.js",
+        "src/features/video-context/track-bind.js",
+        "src/platform/bilibili/adapter.js",
+        "src/platform/bilibili/ids.js",
+        "src/shared/errors.js",
+        "src/shared/time.js",
+        "src/shared/text.js"
       ],
       "matches": [
         "https://www.bilibili.com/*",

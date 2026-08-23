@@ -58,3 +58,5 @@ python scripts/pack.py
 ```
 
 生成 `bilibili-subtitle-helper.zip`，调试区会关闭。把这个 ZIP 上传到商店，不要上传整个源码目录。
+
+Edge 商店不接受 `content_scripts.type = module`，内容脚本由 `content-boot.js` 加载，不要改回去。
