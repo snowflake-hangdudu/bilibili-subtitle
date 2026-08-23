@@ -42,7 +42,7 @@ src/background/          消息路由、下载、会话
 src/content/             页面识别与字幕读取
 src/popup/               当前页状态与提取入口
 src/workspace/           字幕列表、搜索、导出
-src/options/             低频设置与隐私说明
+src/options/             导出偏好与清理本地数据
 src/platform/bilibili/   B站适配层
 src/features/            解析、清洗、搜索、导出
 ```

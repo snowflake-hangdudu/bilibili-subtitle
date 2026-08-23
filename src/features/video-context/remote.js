@@ -12,6 +12,7 @@ import {
 } from '../../platform/bilibili/adapter.js';
 import { isBilibiliVideoPage, parseVideoId } from '../../platform/bilibili/ids.js';
 import { contextMatchesHref, cueSpanSec, cuesMatchVideo, reconcileContext } from './detect.js';
+import { aiSubtitleUrlMatches, isCarryOverExtract, trackConflictsWithIndex } from './track-bind.js';
 
 function shortUrl(value) {
   try {
@@ -70,6 +71,12 @@ export async function identifyByHref(href, fetchJson, { log } = {}) {
   }
 
   if (loginHint && !tracks.length) throw createAppError(ErrorCode.LOGIN_REQUIRED, { detail: `player:${playerCode}` });
+  const trusted = tracks.filter((track) => {
+    const ok = aiSubtitleUrlMatches(track.url, context);
+    if (!ok) note(`drop foreign ${shortUrl(track.url)}`);
+    return ok;
+  });
+  tracks = trusted;
   note(`tracks ${tracks.map((item) => `${item.label}:${shortUrl(item.url)}`).join(' | ') || 'none'}`);
 
   return {
@@ -88,7 +95,7 @@ async function loadCues(track, fetchJson, mergeShortLines) {
   return { parsed, cues };
 }
 
-export async function extractByHref(href, fetchJson, { trackId, mergeShortLines, log } = {}) {
+export async function extractByHref(href, fetchJson, { trackId, mergeShortLines, log, previous, trackIndex } = {}) {
   const note = typeof log === 'function' ? log : () => {};
   const status = await identifyByHref(href, fetchJson, { log: note });
   if (!contextMatchesHref(status.context, href)) {
@@ -104,6 +111,10 @@ export async function extractByHref(href, fetchJson, { trackId, mergeShortLines,
   let lastEmpty = false;
   for (const track of ordered) {
     if (!track.url) continue;
+    if (!aiSubtitleUrlMatches(track.url, status.context) || trackConflictsWithIndex(track, status.context, trackIndex)) {
+      note(`skip leftover ${shortUrl(track.url)}`);
+      continue;
+    }
     note(`fetch ${track.label} ${shortUrl(track.url)}`);
     const { parsed, cues } = await loadCues(track, fetchJson, mergeShortLines);
     const span = cueSpanSec(cues);
@@ -114,7 +125,7 @@ export async function extractByHref(href, fetchJson, { trackId, mergeShortLines,
       continue;
     }
     if (!ok) continue;
-    return {
+    const extracted = {
       video: status.context,
       track,
       tracks: status.tracks,
@@ -124,6 +135,11 @@ export async function extractByHref(href, fetchJson, { trackId, mergeShortLines,
       source: 'api',
       mismatch: false
     };
+    if (isCarryOverExtract(extracted, previous)) {
+      note(`skip carry-over ${shortUrl(track.url)}`);
+      continue;
+    }
+    return extracted;
   }
 
   if (lastEmpty && !status.tracks.length) throw createAppError(ErrorCode.EMPTY_AFTER_CLEAN);

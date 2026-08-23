@@ -141,7 +141,7 @@
       const apiTracks = pickTracks(result.json);
       const payloadCid = Number(result.json?.data?.cid);
       const payloadBvid = String(result.json?.data?.bvid || '');
-      const cidOk = !context.cid || !payloadCid || Number(context.cid) === payloadCid;
+      const cidOk = !context.cid || (payloadCid > 0 && Number(context.cid) === payloadCid);
       const bvidOk = !context.bvid || !payloadBvid || payloadBvid.toLowerCase() === String(context.bvid).toLowerCase();
       if (result.ok && cidOk && bvidOk && Array.isArray(apiTracks) && apiTracks.length) {
         return {

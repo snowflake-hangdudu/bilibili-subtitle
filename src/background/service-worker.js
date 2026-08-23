@@ -6,6 +6,8 @@ import { applyVideoChange, videoUrlWithPart } from '../features/video-context/sy
 import { isBilibiliVideoPage } from '../platform/bilibili/ids.js';
 import { loadSettings, saveSettings } from '../storage/settings.js';
 import { clearSession, loadSession, saveDiagnostic, saveSession } from '../storage/session.js';
+import { loadTrackIndex, rememberTrustedTracks } from '../storage/track-index.js';
+import { aiSubtitleUrlMatches, isCarryOverExtract, trackConflictsWithIndex } from '../features/video-context/track-bind.js';
 import { CONFIG_MESSAGE, CONFIG_URL } from '../features/remote/config.js';
 
 const WORKSPACE_PATH = 'src/workspace/workspace.html';
@@ -130,18 +132,39 @@ async function statusFromTab(tab) {
   const debug = [];
   const log = (line) => debug.push(String(line));
   const fallback = await identifyByHref(href, fetchUrl, { log });
+  const index = await loadTrackIndex();
+  const tracks = (fallback.tracks || []).filter((track) => {
+    const trusted = aiSubtitleUrlMatches(track.url, fallback.context) && !trackConflictsWithIndex(track, fallback.context, index);
+    if (!trusted) log(`hide leftover ${track.label || track.id}`);
+    return trusted;
+  });
+  await rememberTrustedTracks(fallback.context, tracks);
   return {
     ok: true,
     ...fallback,
+    tracks,
+    trackCount: tracks.length,
     tabId: tab.id,
     debug,
     pageReady: await pingTab(tab.id)
   };
 }
 
-async function acceptExtract(extracted, href, source, debug) {
+async function acceptExtract(extracted, href, source, debug, { previous, trackIndex } = {}) {
   if (!extracted?.cues?.length) return null;
   if (!contextMatchesHref(extracted.video, href)) return null;
+  if (!aiSubtitleUrlMatches(extracted.track?.url, extracted.video)) {
+    debug.push(`reject foreign url source=${source}`);
+    return null;
+  }
+  if (trackConflictsWithIndex(extracted.track, extracted.video, trackIndex)) {
+    debug.push(`reject reused url source=${source}`);
+    return null;
+  }
+  if (isCarryOverExtract(extracted, previous)) {
+    debug.push(`reject carry-over source=${source}`);
+    return null;
+  }
   if (!cuesMatchVideo(extracted.cues, extracted.video?.durationSec, {
     requireCoverage: String(source).startsWith('page')
   })) return null;
@@ -154,6 +177,8 @@ async function extractFromTab(tab, options = {}) {
   const debug = [];
   const log = (line) => debug.push(String(line));
   log(`tab ${tab.id} ${href}`);
+  const previous = await loadSession();
+  const trackIndex = await loadTrackIndex();
 
   const attempts = [
     { label: 'api', trackId: options.trackId },
@@ -177,7 +202,7 @@ async function extractFromTab(tab, options = {}) {
           mergeShortLines: options.mergeShortLines
         });
         const extracted = page?.result;
-        const accepted = await acceptExtract(extracted, href, attempt.label, debug);
+        const accepted = await acceptExtract(extracted, href, attempt.label, debug, { previous, trackIndex });
         if (accepted) return { ...accepted, tabId: tab.id };
         log(`reject ${attempt.label} cues=${extracted?.cues?.length || 0} duration=${extracted?.video?.durationSec || 0}`);
         continue;
@@ -185,9 +210,11 @@ async function extractFromTab(tab, options = {}) {
       const result = await extractByHref(href, fetchUrl, {
         trackId: attempt.trackId,
         mergeShortLines: options.mergeShortLines,
-        log
+        log,
+        previous,
+        trackIndex
       });
-      const accepted = await acceptExtract(result, href, attempt.label, debug);
+      const accepted = await acceptExtract(result, href, attempt.label, debug, { previous, trackIndex });
       if (accepted) return { ...accepted, tabId: tab.id };
       log(`reject ${attempt.label}`);
     } catch (error) {
@@ -213,7 +240,10 @@ async function extractOnTab(tabId, options = {}) {
     stale: false,
     changedTo: undefined
   };
-  if (options.commit) await saveSession(session);
+  if (options.commit) {
+    await saveSession(session);
+    await rememberTrustedTracks(session.video, session.track ? [session.track] : session.tracks);
+  }
   return session;
 }
 

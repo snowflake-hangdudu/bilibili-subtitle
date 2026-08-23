@@ -159,3 +159,130 @@ test('extract keeps cid-matched track even if captions cover part of the video',
   assert.equal(result.video.durationSec, 600);
   assert.equal(result.mismatch, false);
 });
+
+test('extract drops ai subtitle file whose url belongs to another aid/cid', async () => {
+  const href = 'https://www.bilibili.com/video/BV1hw4T6MEyE';
+  async function fetchJson(url) {
+    if (url.includes('/x/web-interface/view')) {
+      return {
+        code: 0,
+        data: {
+          title: '星游记',
+          bvid: 'BV1hw4T6MEyE',
+          aid: 114514,
+          cid: 1919810,
+          duration: 233,
+          pages: [{ cid: 1919810, page: 1, part: '正片', duration: 233 }]
+        }
+      };
+    }
+    if (url.includes('/x/player/')) {
+      return {
+        code: 0,
+        data: {
+          cid: 1919810,
+          bvid: 'BV1hw4T6MEyE',
+          subtitle: {
+            subtitles: [
+              {
+                id: 1,
+                lan: 'ai-zh',
+                lan_doc: '中文 - 自动',
+                subtitle_url: 'https://aisubtitle.hdslb.com/bfs/ai_subtitle/prod/999888777666555444333222111aaa',
+                type: 1
+              }
+            ]
+          }
+        }
+      };
+    }
+    return { body: [{ from: 0, to: 150, content: '小米苏七 比亚迪刀片电池' }] };
+  }
+
+  await assert.rejects(() => extractByHref(href, fetchJson), /未提供字幕|对不上/);
+});
+
+test('extract keeps ai subtitle url that embeds current aid and cid', async () => {
+  const href = 'https://www.bilibili.com/video/BV1hw4T6MEyE';
+  async function fetchJson(url) {
+    if (url.includes('/x/web-interface/view')) {
+      return {
+        code: 0,
+        data: {
+          title: '星游记',
+          bvid: 'BV1hw4T6MEyE',
+          aid: 114514,
+          cid: 1919810,
+          duration: 233,
+          pages: [{ cid: 1919810, page: 1, part: '正片', duration: 233 }]
+        }
+      };
+    }
+    if (url.includes('/x/player/')) {
+      return {
+        code: 0,
+        data: {
+          cid: 1919810,
+          bvid: 'BV1hw4T6MEyE',
+          subtitle: {
+            subtitles: [
+              {
+                id: 1,
+                lan: 'ai-zh',
+                lan_doc: '中文 - 自动',
+                subtitle_url: 'https://aisubtitle.hdslb.com/bfs/ai_subtitle/prod/1145141919810abcdef',
+                type: 1
+              }
+            ]
+          }
+        }
+      };
+    }
+    return { body: [{ from: 0, to: 220, content: '相信奇迹' }] };
+  }
+
+  const result = await extractByHref(href, fetchJson);
+  assert.equal(result.cues[0].text, '相信奇迹');
+});
+
+test('extract drops the same subtitle file carried from the previous video', async () => {
+  const href = 'https://www.bilibili.com/video/BV1hw4T6MEyE';
+  async function fetchJson(url) {
+    if (url.includes('/x/web-interface/view')) {
+      return {
+        code: 0,
+        data: {
+          title: '星游记',
+          bvid: 'BV1hw4T6MEyE',
+          aid: 8,
+          cid: 9,
+          duration: 233,
+          pages: [{ cid: 9, page: 1, part: '正片', duration: 233 }]
+        }
+      };
+    }
+    if (url.includes('/x/player/')) {
+      return {
+        code: 0,
+        data: {
+          cid: 9,
+          bvid: 'BV1hw4T6MEyE',
+          subtitle: {
+            subtitles: [
+              { id: 1, lan: 'zh-CN', lan_doc: '中文', subtitle_url: 'https://i0.hdslb.com/bfs/subtitle/su7.json', type: 0 }
+            ]
+          }
+        }
+      };
+    }
+    return { body: [{ from: 0, to: 150, content: '造车技术我是不懂' }] };
+  }
+
+  await assert.rejects(() => extractByHref(href, fetchJson, {
+    previous: {
+      video: { bvid: 'BV1su7xxxx01', cid: 1 },
+      track: { url: 'https://i0.hdslb.com/bfs/subtitle/su7.json' },
+      cues: [{ startMs: 0, endMs: 150000, text: '造车技术我是不懂' }]
+    }
+  }), /对不上|未提供字幕/);
+});

@@ -4,6 +4,7 @@ import { createAppError, ErrorCode, toErrorPayload } from '../shared/errors.js';
 import { isBilibiliVideoPage } from '../platform/bilibili/ids.js';
 import { tracksFromPlayerPayload } from '../platform/bilibili/adapter.js';
 import { cuesMatchVideo, reconcileContext } from '../features/video-context/detect.js';
+import { aiSubtitleUrlMatches } from '../features/video-context/track-bind.js';
 import { mountPanel } from './panel.js';
 
 const AGENT = 'bsh-agent';
@@ -54,7 +55,7 @@ async function getStatus() {
     context = reconcileContext(location.href, result.context || context);
   }
   if (!context?.bvid && !context?.aid) throw createAppError(ErrorCode.NO_CONTEXT);
-  const tracks = normalizeTracks(result.tracks);
+  const tracks = normalizeTracks(result.tracks).filter((track) => aiSubtitleUrlMatches(track.url, context));
   if (result.loginHint && !tracks.length) throw createAppError(ErrorCode.LOGIN_REQUIRED);
   return {
     context,

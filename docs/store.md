@@ -22,10 +22,39 @@ B站字幕提取助手
 
 数据在本地处理。不上传字幕，不建立账号，不下载视频。
 
-## 建议截图顺序
+## 商店后台填写
 
-1. 打开视频页，弹窗显示“检测到 X 条字幕轨道”
-2. 选择轨道并提取
-3. 工作台搜索与字幕列表
-4. 导出 TXT / SRT / Markdown
-5. 设置页的权限与隐私说明
+| 项 | 内容 |
+| --- | --- |
+| 名称 | B站字幕提取助手 |
+| 版本 | 1.0.0 |
+| 隐私政策 | https://snowflake-hangdudu.github.io/bilibili-subtitle/ |
+| 常见问题 | https://snowflake-hangdudu.github.io/bilibili-subtitle/faq.html |
+| 支持邮箱 | hangdudu0@agent.qq.com |
+| 分类 | 效率 / 生产力 |
+| 语言 | 简体中文 |
+
+## 权限说明（审核用）
+
+- `storage`：保存导出格式、文件名模板等本机设置
+- `downloads`：把 TXT / SRT / Markdown 存到用户指定位置
+- `clipboardWrite`：工作台一键复制字幕文本
+- `bilibili.com` / `api.bilibili.com` / `*.hdslb.com`：识别当前视频并读取已公开字幕
+- 配置站：只读公告、开发合作和评分开关，不含字幕正文
+
+## 建议截图
+
+1. 视频页工具栏弹窗：识别到轨道，标题和 BV 与页面一致
+2. 提取后的字幕工作台：列表、搜索、导出 TXT（默认）
+3. 工作台复制 / 导出操作
+4. 设置页：导出偏好（不要再拍已删除的权限说明卡）
+
+不要用字幕和视频对不上的画面。画面有字但没有字幕轨道的片子，不要当成演示片。
+
+## 打包
+
+```bash
+python scripts/pack.py
+```
+
+生成 `bilibili-subtitle-helper.zip`，调试区会关闭。把这个 ZIP 上传到商店，不要上传整个源码目录。
