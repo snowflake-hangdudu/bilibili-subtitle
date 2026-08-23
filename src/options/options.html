@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>设置 · B站字幕提取与整理助手</title>
+  <link rel="stylesheet" href="../shared/theme.css" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <img src="../../public/icons/icon48.png" alt="" />
+      <div>
+        <h1>设置</h1>
+        <p>这些选项只保存在本机浏览器，不会上传。</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>导出偏好</h2>
+      <label class="field">
+        <span>默认格式</span>
+        <select id="format">
+          <option value="markdown">Markdown</option>
+          <option value="txt">TXT</option>
+          <option value="srt">SRT</option>
+        </select>
+      </label>
+      <label class="check"><input id="include-ts" type="checkbox" /> 默认带时间轴（SRT 始终包含时间）</label>
+      <label class="field">
+        <span>时间显示</span>
+        <select id="ts-format">
+          <option value="clock">自动（短视频用 mm:ss）</option>
+          <option value="full">始终 HH:MM:SS</option>
+        </select>
+      </label>
+      <label class="check"><input id="merge-short" type="checkbox" /> 合并过短的相邻字幕</label>
+      <label class="field">
+        <span>文件名模板</span>
+        <input id="filename" type="text" spellcheck="false" />
+        <small>可用变量：{title} {part} {lang} {bvid} {owner}</small>
+      </label>
+      <button id="save" class="primary" type="button">保存设置</button>
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>权限说明</h2>
+      <ul>
+        <li><strong>storage</strong>：保存导出格式、文件名模板等本地设置。</li>
+        <li><strong>downloads</strong>：把 TXT / SRT / Markdown 保存到你指定的下载位置。</li>
+        <li><strong>B站与字幕域名访问</strong>：仅用于识别当前视频、读取已公开的字幕接口。不访问其他网站。</li>
+        <li><strong>配置站</strong>：读取公告、开发合作和评分开关。不含字幕正文。</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>隐私说明</h2>
+      <ul>
+        <li>字幕提取、清洗、搜索和导出都在本地完成。</li>
+        <li>不会把视频内容、字幕正文或浏览记录上传到开发者服务器。</li>
+        <li>V1 没有账号系统，也没有云同步。</li>
+        <li>本扩展只整理视频已提供的字幕，不会做语音识别，也不会绕过 B站访问控制。</li>
+      </ul>
+      <button id="clear" type="button">清理本地数据</button>
+    </section>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

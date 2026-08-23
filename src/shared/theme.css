@@ -1,0 +1,63 @@
+:root {
+  --bsh-brand: #f7477f;
+  --bsh-brand-deep: #de2f68;
+  --bsh-brand-soft: #fff1f5;
+  --bsh-brand-ring: rgba(247, 71, 127, 0.16);
+  --bsh-text: #1c1917;
+  --bsh-sub: #57534e;
+  --bsh-muted: #8a847e;
+  --bsh-line: #ece8e5;
+  --bsh-bg: #f7f6f4;
+  --bsh-card: #ffffff;
+  --bsh-ok: #047857;
+  --bsh-ok-bg: #ecfdf5;
+  --bsh-ok-line: #a7f3d0;
+  --bsh-warn: #b45309;
+  --bsh-warn-bg: #fffbeb;
+  --bsh-warn-line: #fde68a;
+  --bsh-danger: #be123c;
+  --bsh-danger-bg: #fff1f2;
+  --bsh-danger-line: #fecdd3;
+  --bsh-info: #0369a1;
+  --bsh-info-bg: #f0f9ff;
+  --bsh-info-line: #bae6fd;
+  --bsh-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --bsh-radius: 14px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  color: var(--bsh-text);
+  background: var(--bsh-bg);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

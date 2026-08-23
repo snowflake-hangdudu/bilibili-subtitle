@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "B站字幕提取与整理助手",
+  "version": "1.0.0",
+  "description": "提取 B站视频已有字幕，清洗后可搜索并导出为 TXT / SRT / Markdown。",
+  "permissions": ["storage", "downloads"],
+  "host_permissions": [
+    "https://www.bilibili.com/*",
+    "https://m.bilibili.com/*",
+    "https://api.bilibili.com/*",
+    "https://*.hdslb.com/*",
+    "https://download-config-hub.nutmeg-venus-6882.chatgpt.site/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "32": "public/icons/icon32.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  },
+  "action": {
+    "default_title": "B站字幕提取与整理助手",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "32": "public/icons/icon32.png",
+      "48": "public/icons/icon48.png",
+      "128": "public/icons/icon128.png"
+    }
+  },
+  "options_page": "src/options/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.bilibili.com/video/*",
+        "https://www.bilibili.com/list/*",
+        "https://m.bilibili.com/video/*"
+      ],
+      "js": ["src/content/page-agent.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.bilibili.com/video/*",
+        "https://www.bilibili.com/list/*",
+        "https://m.bilibili.com/video/*"
+      ],
+      "js": ["src/content/content.js"],
+      "run_at": "document_idle",
+      "type": "module"
+    }
+  ]
+}
