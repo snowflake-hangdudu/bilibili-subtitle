@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "B站字幕提取与整理助手",
+  "name": "B站字幕提取助手",
   "version": "1.0.0",
   "description": "提取 B站视频已有字幕，清洗后可搜索并导出为 TXT / SRT / Markdown。",
-  "permissions": ["storage", "downloads"],
+  "permissions": ["storage", "downloads", "clipboardWrite"],
   "host_permissions": [
     "https://www.bilibili.com/*",
     "https://m.bilibili.com/*",
@@ -22,8 +22,8 @@
     "128": "public/icons/icon128.png"
   },
   "action": {
-    "default_title": "B站字幕提取与整理助手",
     "default_popup": "src/popup/popup.html",
+    "default_title": "B站字幕提取助手",
     "default_icon": {
       "16": "public/icons/icon16.png",
       "32": "public/icons/icon32.png",
@@ -50,8 +50,21 @@
         "https://m.bilibili.com/video/*"
       ],
       "js": ["src/content/content.js"],
+      "css": ["src/content/panel.css"],
       "run_at": "document_idle",
       "type": "module"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/popup/popup.html",
+        "public/icons/icon128.png"
+      ],
+      "matches": [
+        "https://www.bilibili.com/*",
+        "https://m.bilibili.com/*"
+      ]
     }
   ]
 }

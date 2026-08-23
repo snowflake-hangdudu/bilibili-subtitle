@@ -41,12 +41,21 @@ function section(value) {
 }
 
 export function httpsUrl(value) {
-  try {
-    const url = new URL(String(value || ''));
-    return url.protocol === 'https:' ? url.href : '';
-  } catch {
-    return '';
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const candidates = [raw];
+  if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw)) {
+    candidates.unshift(`https://${raw}`);
   }
+  for (const item of candidates) {
+    try {
+      const url = new URL(item);
+      if (url.protocol === 'https:') return url.href;
+    } catch {
+      // 下一项
+    }
+  }
+  return '';
 }
 
 export function mergeRemoteContent(value, defaults = DEFAULT_REMOTE_CONTENT) {

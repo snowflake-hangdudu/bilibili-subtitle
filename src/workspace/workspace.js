@@ -2,9 +2,12 @@ import { loadSettings, saveSettings } from '../storage/settings.js';
 import { filterCues, highlightText } from '../features/search/search.js';
 import { cuesToTxt } from '../features/export/exporter.js';
 import { partLabel } from '../features/video-context/sync.js';
+import { cuesMatchVideo } from '../features/video-context/detect.js';
+import { bindDebug } from '../shared/debug.js';
 import { formatTimeRange } from '../shared/time.js';
 import { bindPromo } from '../features/remote/ui.js';
 
+const debug = bindDebug(document);
 const promo = bindPromo(document);
 
 const $ = (id) => document.getElementById(id);
@@ -44,7 +47,7 @@ function toast(message) {
 }
 
 function selectedFormat() {
-  return document.querySelector('input[name="format"]:checked')?.value || 'markdown';
+  return document.querySelector('input[name="format"]:checked')?.value || 'txt';
 }
 
 function visibleCues() {
@@ -126,16 +129,23 @@ function fillParts() {
 
 function renderStale() {
   const stale = Boolean(session?.stale);
-  ui.stale.classList.toggle('hidden', !stale);
-  if (!stale) return;
+  const mismatch = Boolean(session && !cuesMatchVideo(session.cues, session.video?.durationSec));
+  ui.stale.classList.toggle('hidden', !stale && !mismatch);
+  if (!stale && !mismatch) return;
   const to = session.changedTo;
   const tracks = Number(to?.trackCount);
   const trackHint = Number.isFinite(tracks)
     ? (tracks > 0 ? `检测到 ${tracks} 条字幕轨道。` : '当前视频未提供字幕。')
     : '';
-  ui.staleText.textContent = to
-    ? `页面已切换到「${to.title || to.part || to.bvid || '另一个视频'}」。${trackHint}下面仍是上一份字幕，导出前请先提取当前视频。`
-    : '视频或分P已切换。下面仍是上一份字幕，导出前请先提取当前视频。';
+  if (stale && to) {
+    ui.staleText.textContent = `页面已切换到「${to.title || to.part || to.bvid || '另一个视频'}」。${trackHint}下面仍是上一份字幕，导出前请先提取当前视频。`;
+    return;
+  }
+  if (stale) {
+    ui.staleText.textContent = '视频或分P已切换。下面仍是上一份字幕，导出前请先提取当前视频。';
+    return;
+  }
+  ui.staleText.textContent = '这份字幕的时长和当前视频对不上，可能还是上一部视频的。请重新提取后再导出。';
 }
 
 async function copyText(withTime) {
@@ -154,8 +164,8 @@ async function copyText(withTime) {
 
 async function exportFile() {
   if (!session) return;
-  if (session.stale) {
-    const ok = window.confirm('当前仍是切换前的字幕。确定要导出这一份，而不是先提取当前视频吗？');
+  if (session.stale || !cuesMatchVideo(session.cues, session.video?.durationSec)) {
+    const ok = window.confirm('当前字幕可能不是这个视频的。确定要导出这一份，而不是先提取当前视频吗？');
     if (!ok) return;
   }
   const format = selectedFormat();
@@ -195,14 +205,16 @@ async function extractNow({ partNo } = {}) {
     tabId: session?.tabId,
     partNo,
     trackId: current.lastTrackId,
-    mergeShortLines: current.mergeShortLines
+    mergeShortLines: current.mergeShortLines,
+    commit: true
   });
   busy = false;
+  debug.dump(res?.session?.debug || (res?.error?.detail ? String(res.error.detail).split('\n') : []));
   if (!res?.ok) {
     toast(res?.error?.message || '提取失败，请回到视频页重试。');
     return;
   }
-  toast(`已整理 ${res.session.cues.length} 条字幕`);
+  toast(`已核对并更新 ${res.session.cues.length} 条字幕`);
   await promo.rating.noteSuccess();
 }
 
@@ -234,6 +246,7 @@ async function hydrate() {
   renderStale();
   applyFilter();
   hydrating = false;
+  promo.rating.restoreIfNeeded();
 }
 
 ui.search.addEventListener('input', applyFilter);
@@ -251,4 +264,5 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changes['bsh.session.v1'] || changes['bsh.settings.v1']) hydrate();
 });
 
+chrome.runtime.sendMessage({ type: 'WORKSPACE_HELLO' }).catch(() => {});
 hydrate();

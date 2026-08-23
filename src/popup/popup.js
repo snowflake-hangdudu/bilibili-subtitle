@@ -1,5 +1,8 @@
 import { loadSettings, saveSettings } from '../storage/settings.js';
 import { bindPromo } from '../features/remote/ui.js';
+import { bindDebug } from '../shared/debug.js';
+
+const debug = bindDebug(document);
 
 const promo = bindPromo(document);
 
@@ -13,6 +16,7 @@ const ui = {
   videoTitle: $('video-title'),
   videoSub: $('video-sub'),
   trackSelect: $('track-select'),
+  trackEmpty: $('track-empty'),
   mergeShort: $('merge-short'),
   btnExtract: $('btn-extract'),
   btnRetry: $('btn-retry'),
@@ -75,14 +79,30 @@ async function refresh() {
     return;
   }
 
+  debug.dump(res.debug);
   const { context, tracks } = res;
   ui.videoCard.classList.remove('hidden');
   ui.videoTitle.textContent = context.title || context.bvid || '未命名视频';
-  ui.videoSub.textContent = [context.owner && `UP ${context.owner}`, context.bvid, context.part]
-    .filter(Boolean)
-    .join(' · ');
+  ui.videoSub.textContent = [
+    context.owner && `UP ${context.owner}`,
+    context.bvid,
+    Number(context.pageCount) > 1 ? context.part : ''
+  ].filter(Boolean).join(' · ');
 
   ui.trackSelect.replaceChildren();
+  ui.trackSelect.classList.toggle('is-empty', !tracks.length);
+  ui.trackSelect.disabled = !tracks.length;
+  ui.trackEmpty?.classList.toggle('hidden', Boolean(tracks.length));
+  if (!tracks.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = '暂无字幕轨道';
+    ui.trackSelect.appendChild(option);
+    setState('warn', '该视频未提供字幕', '没有可提取的字幕轨道，不会生成字幕或调用识别服务。');
+    ui.btnExtract.disabled = true;
+    showRetry(true);
+    return;
+  }
   for (const track of tracks) {
     const option = document.createElement('option');
     option.value = track.id;
@@ -91,13 +111,6 @@ async function refresh() {
   }
   if (settings.lastTrackId && tracks.some((track) => track.id === settings.lastTrackId)) {
     ui.trackSelect.value = settings.lastTrackId;
-  }
-
-  if (!tracks.length) {
-    setState('warn', '该视频未提供字幕', '没有可提取的字幕轨道，不会生成字幕或调用识别服务。');
-    ui.btnExtract.disabled = true;
-    showRetry(true);
-    return;
   }
 
   setState('ok', `检测到 ${tracks.length} 条字幕轨道`, '选一条轨道，提取后会在工作台里搜索和导出。');
@@ -133,14 +146,18 @@ ui.btnRetry.addEventListener('click', () => {
 ui.btnExtract.addEventListener('click', async () => {
   ui.btnExtract.disabled = true;
   showRetry(false);
-  setStatus('正在提取并清洗字幕…', 'info');
+  setStatus('正在提取并自动核对…', 'info');
+  debug.log('开始提取', ui.trackSelect.value);
   const res = await chrome.runtime.sendMessage({
     type: 'EXTRACT_CURRENT',
     trackId: ui.trackSelect.value,
-    mergeShortLines: ui.mergeShort.checked
+    mergeShortLines: ui.mergeShort.checked,
+    commit: true
   });
+  debug.dump(res?.session?.debug || (res?.error?.detail ? String(res.error.detail).split('\n') : []));
   if (!res?.ok) {
     setStatus(res?.error?.message || '提取失败，请重试。', 'danger');
+    debug.log('提取失败', res?.error?.code, res?.error?.message);
     ui.btnExtract.disabled = false;
     showRetry(true);
     return;
@@ -149,11 +166,17 @@ ui.btnExtract.addEventListener('click', async () => {
     lastTrackId: ui.trackSelect.value,
     mergeShortLines: ui.mergeShort.checked
   });
-  setStatus(`已整理 ${res.session.cues.length} 条字幕，正在打开工作台。`, 'ok');
+  setStatus(`已核对 ${res.session.cues.length} 条字幕，正在打开工作台。`, 'ok');
   ui.btnWorkspace.classList.remove('hidden');
-  const showRating = await promo.rating.noteSuccess();
+  await promo.rating.noteSuccess();
   await chrome.runtime.sendMessage({ type: 'OPEN_WORKSPACE' });
-  if (!showRating) window.close();
+  ui.btnExtract.disabled = false;
+});
+
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'BSH_VIDEO_CHANGED') {
+    refresh().catch(() => {});
+  }
 });
 
 refresh().catch((error) => {

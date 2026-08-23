@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'bsh.settings.v1';
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  format: 'markdown',
+  format: 'txt',
   includeTimestamp: true,
   mergeShortLines: true,
   timestampFormat: 'clock',

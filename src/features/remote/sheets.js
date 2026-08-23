@@ -82,15 +82,35 @@ export function renderInfoSheet(els, key, item) {
   else fillPlainBody(els.body, data.body);
 }
 
-export function bindPromoSheets({ home, page, back, title, date, body, getContent, loadContent }) {
+export function bindPromoSheets({ shell, home, page, back, title, date, body, getContent, loadContent }) {
   const els = { title, date, body };
+  const frame = shell || home?.parentElement;
+
+  function unlockHeight() {
+    if (!frame) return;
+    frame.classList.remove('is-page');
+    frame.style.height = '';
+    frame.style.minHeight = '';
+  }
+
+  function lockHeight() {
+    if (!frame || frame.classList.contains('is-page')) return;
+    const height = Math.round(frame.getBoundingClientRect().height);
+    if (height > 0) {
+      frame.style.height = `${height}px`;
+      frame.style.minHeight = `${height}px`;
+    }
+    frame.classList.add('is-page');
+  }
 
   function showHome() {
     page.classList.add('hidden');
     home.classList.remove('hidden');
+    unlockHeight();
   }
 
   async function openSheet(key) {
+    lockHeight();
     renderInfoSheet(els, key, getContent()?.[key]);
     home.classList.add('hidden');
     page.classList.remove('hidden');

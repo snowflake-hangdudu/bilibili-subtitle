@@ -46,6 +46,7 @@ test('rating stays off without https store url', () => {
 test('version gate and url helpers', () => {
   assert.equal(compareVersions('1.0.1', '1.0.0'), 1);
   assert.equal(httpsUrl('https://example.com/a'), 'https://example.com/a');
+  assert.equal(httpsUrl('www.baidu.com'), 'https://www.baidu.com/');
   assert.equal(httpsUrl('javascript:alert(1)'), '');
   assert.equal(
     pickRatingUrl({ chrome: 'https://chromewebstore.google.com/detail/x', url: 'https://fallback.test' }, 'chrome'),

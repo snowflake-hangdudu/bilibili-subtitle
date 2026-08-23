@@ -4,22 +4,36 @@ import { createAppError, ErrorCode } from '../../shared/errors.js';
 import {
   classifyPlayerError,
   contextFromViewPayload,
+  durationFromPlayerData,
   playerApiUrl,
+  playerPayloadMatches,
   tracksFromPlayerPayload,
   viewApiUrl
 } from '../../platform/bilibili/adapter.js';
 import { isBilibiliVideoPage, parseVideoId } from '../../platform/bilibili/ids.js';
-import { reconcileContext } from './detect.js';
+import { contextMatchesHref, cueSpanSec, cuesMatchVideo, reconcileContext } from './detect.js';
+
+function shortUrl(value) {
+  try {
+    const url = new URL(String(value || ''), 'https://www.bilibili.com');
+    return `${url.hostname}${url.pathname}`.slice(0, 96);
+  } catch {
+    return String(value || '').slice(0, 96);
+  }
+}
 
 export function playerApiCandidates(context) {
   const v2 = playerApiUrl(context);
   return [v2, v2.replace('/x/player/v2?', '/x/player/wbi/v2?')];
 }
 
-export async function identifyByHref(href, fetchJson) {
+export async function identifyByHref(href, fetchJson, { log } = {}) {
+  const note = typeof log === 'function' ? log : () => {};
   if (!isBilibiliVideoPage(href)) throw createAppError(ErrorCode.NOT_VIDEO_PAGE, { detail: href });
   const id = parseVideoId(href);
   if (!id) throw createAppError(ErrorCode.NO_CONTEXT, { detail: `no-id:${href}` });
+  note(`page ${href}`);
+  note(`id ${id.kind}=${id.value}`);
 
   const view = await fetchJson(viewApiUrl(id));
   if (view && typeof view === 'object' && Number(view.code) && Number(view.code) !== 0) {
@@ -27,8 +41,12 @@ export async function identifyByHref(href, fetchJson) {
   }
 
   const context = reconcileContext(href, contextFromViewPayload(view, href));
+  note(`view ${context.bvid || context.aid} cid=${context.cid} duration=${context.durationSec || 0}s title=${context.title || ''}`);
   if (!context.bvid && !context.aid) {
     throw createAppError(ErrorCode.NO_CONTEXT, { detail: `view-empty:${id.kind}=${id.value}` });
+  }
+  if (!context.cid) {
+    throw createAppError(ErrorCode.NO_CONTEXT, { detail: `no-cid:${context.bvid || context.aid}` });
   }
 
   let tracks = [];
@@ -37,16 +55,22 @@ export async function identifyByHref(href, fetchJson) {
   for (const url of playerApiCandidates(context)) {
     const payload = await fetchJson(url);
     playerCode = Number(payload?.code) || 0;
+    const data = payload?.data || {};
+    const found = tracksFromPlayerPayload(payload);
+    const matched = found.length && playerPayloadMatches(context, payload);
+    note(`player ${shortUrl(url)} code=${playerCode} cid=${data.cid || 0} bvid=${data.bvid || ''} tracks=${found.length} match=${Boolean(matched)}`);
     const classified = classifyPlayerError(payload);
     if (classified?.code === ErrorCode.LOGIN_REQUIRED) loginHint = true;
-    const found = tracksFromPlayerPayload(payload);
-    if (found.length) {
+    if (matched) {
       tracks = found;
+      const playerDuration = durationFromPlayerData(data);
+      if (playerDuration) context.durationSec = playerDuration;
       break;
     }
   }
 
   if (loginHint && !tracks.length) throw createAppError(ErrorCode.LOGIN_REQUIRED, { detail: `player:${playerCode}` });
+  note(`tracks ${tracks.map((item) => `${item.label}:${shortUrl(item.url)}`).join(' | ') || 'none'}`);
 
   return {
     context,
@@ -57,24 +81,54 @@ export async function identifyByHref(href, fetchJson) {
   };
 }
 
-export async function extractByHref(href, fetchJson, { trackId, mergeShortLines } = {}) {
-  const status = await identifyByHref(href, fetchJson);
-  const track = status.tracks.find((item) => item.id === String(trackId)) || status.tracks[0];
-  if (!track) throw createAppError(ErrorCode.NO_SUBTITLE);
-  if (!track.url) {
-    throw createAppError(status.loginHint ? ErrorCode.LOGIN_REQUIRED : ErrorCode.NO_SUBTITLE);
-  }
+async function loadCues(track, fetchJson, mergeShortLines) {
   const payload = await fetchJson(track.url);
   const parsed = await parseSubtitleTree(payload, fetchJson);
   const cues = cleanCues(parsed, { mergeShortLines });
-  if (!cues.length) throw createAppError(ErrorCode.EMPTY_AFTER_CLEAN);
-  return {
-    video: status.context,
-    track,
-    tracks: status.tracks,
-    cues,
-    rawCueCount: parsed.length,
-    extractedAt: Date.now(),
-    source: 'api'
-  };
+  return { parsed, cues };
+}
+
+export async function extractByHref(href, fetchJson, { trackId, mergeShortLines, log } = {}) {
+  const note = typeof log === 'function' ? log : () => {};
+  const status = await identifyByHref(href, fetchJson, { log: note });
+  if (!contextMatchesHref(status.context, href)) {
+    throw createAppError(ErrorCode.NO_CONTEXT, { detail: `href-mismatch:${status.context.bvid}` });
+  }
+  const ordered = [...status.tracks];
+  const preferred = ordered.find((item) => item.id === String(trackId));
+  if (preferred) {
+    ordered.splice(ordered.indexOf(preferred), 1);
+    ordered.unshift(preferred);
+  }
+
+  let lastEmpty = false;
+  for (const track of ordered) {
+    if (!track.url) continue;
+    note(`fetch ${track.label} ${shortUrl(track.url)}`);
+    const { parsed, cues } = await loadCues(track, fetchJson, mergeShortLines);
+    const span = cueSpanSec(cues);
+    const ok = cuesMatchVideo(cues, status.context.durationSec);
+    note(`cues ${cues.length}/${parsed.length} span=${Math.round(span)}s video=${status.context.durationSec || 0}s match=${ok}`);
+    if (!cues.length) {
+      lastEmpty = true;
+      continue;
+    }
+    if (!ok) continue;
+    return {
+      video: status.context,
+      track,
+      tracks: status.tracks,
+      cues,
+      rawCueCount: parsed.length,
+      extractedAt: Date.now(),
+      source: 'api',
+      mismatch: false
+    };
+  }
+
+  if (lastEmpty && !status.tracks.length) throw createAppError(ErrorCode.EMPTY_AFTER_CLEAN);
+  if (!status.tracks.length) throw createAppError(status.loginHint ? ErrorCode.LOGIN_REQUIRED : ErrorCode.NO_SUBTITLE);
+  throw createAppError(ErrorCode.NO_SUBTITLE, {
+    message: '字幕和当前视频对不上，已丢弃。请换一条轨道或刷新后重试。'
+  });
 }

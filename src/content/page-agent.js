@@ -41,6 +41,12 @@
     return state.videoData || state.videoInfo || state.video || state.aid && state || {};
   }
 
+  function asDurationSec(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return undefined;
+    return n > 36000 ? n / 1000 : n;
+  }
+
   function currentCid(videoData, href) {
     const pages = Array.isArray(videoData.pages) ? videoData.pages : [];
     const partNo = partFromHref(href);
@@ -74,6 +80,10 @@
         || '');
     const bvid = String(urlBvid || videoData.bvid || '');
     const aid = urlAid ? Number(urlAid) : (staleState ? undefined : (videoData.aid != null ? Number(videoData.aid) : undefined));
+    const playerDuration = asDurationSec(window.player?.getDuration?.());
+    const pageDuration = asDurationSec(current.duration);
+    const stateDuration = staleState ? undefined : asDurationSec(videoData.duration);
+    const durationSec = playerDuration || pageDuration || (pages.length > 1 ? undefined : stateDuration);
 
     return {
       title: String(title || '').trim(),
@@ -93,21 +103,9 @@
         part: String(page.part || '')
       })),
       fingerprint: `${bvid || aid || href}|${cid || partNo}`,
+      durationSec,
       staleState
     };
-  }
-
-  function tracksFromState(allowState) {
-    if (allowState === false) return [];
-    const videoData = readVideoData() || {};
-    const fromPlayer = window.player?.getState?.()?.subtitle?.subtitles
-      || window.player?.getState?.()?.subtitle?.list;
-    const list = videoData.subtitle?.list
-      || videoData.subtitle?.subtitles
-      || window.__INITIAL_STATE__?.subtitle?.subtitles
-      || fromPlayer
-      || [];
-    return Array.isArray(list) ? list : [];
   }
 
   async function fetchJson(url) {
@@ -126,7 +124,6 @@
   }
 
   async function listTracks(context) {
-    const fromState = tracksFromState(!context.staleState);
     const params = new URLSearchParams();
     if (context.bvid) params.set('bvid', context.bvid);
     if (context.aid) params.set('aid', String(context.aid));
@@ -142,7 +139,11 @@
       const result = await fetchJson(url);
       last = result;
       const apiTracks = pickTracks(result.json);
-      if (result.ok && Array.isArray(apiTracks) && apiTracks.length) {
+      const payloadCid = Number(result.json?.data?.cid);
+      const payloadBvid = String(result.json?.data?.bvid || '');
+      const cidOk = !context.cid || !payloadCid || Number(context.cid) === payloadCid;
+      const bvidOk = !context.bvid || !payloadBvid || payloadBvid.toLowerCase() === String(context.bvid).toLowerCase();
+      if (result.ok && cidOk && bvidOk && Array.isArray(apiTracks) && apiTracks.length) {
         return {
           tracks: apiTracks,
           apiCode: result.json?.code,
@@ -153,7 +154,7 @@
     }
 
     return {
-      tracks: fromState,
+      tracks: [],
       apiCode: last?.json?.code,
       httpStatus: last?.status,
       loginHint: last?.status === 401 || last?.json?.code === -101

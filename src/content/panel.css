@@ -1,0 +1,52 @@
+#bsh-dock {
+  position: fixed;
+  right: 24px;
+  bottom: 120px;
+  z-index: 2147483646;
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+#bsh-toggle {
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  border: 1px solid #ece8e5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(247, 71, 127, 0.18);
+  cursor: pointer;
+}
+
+#bsh-toggle img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+#bsh-toggle:hover { transform: scale(1.04); }
+
+#bsh-menu {
+  position: absolute;
+  right: 0;
+  bottom: 68px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  height: min(640px, calc(100vh - 180px));
+  overflow: hidden;
+  border: 1px solid #ece8e5;
+  border-radius: 16px;
+  background: #f7f6f4;
+  box-shadow: 0 12px 32px rgba(28, 25, 23, 0.16);
+}
+
+#bsh-menu.hidden { display: none; }
+
+#bsh-menu iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #f7f6f4;
+}

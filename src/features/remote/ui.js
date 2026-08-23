@@ -17,6 +17,7 @@ export function bindPromo(root = document) {
   let content = null;
   const rating = bindRating(root, () => content?.rating || {});
   const sheets = bindPromoSheets({
+    shell: root.querySelector('.wrap') || root.querySelector('.side'),
     home: root.getElementById('home'),
     page: root.getElementById('page'),
     back: root.getElementById('page-back'),
@@ -34,7 +35,7 @@ export function bindPromo(root = document) {
     if (faq) faq.href = pageHref(data.faqUrl, 'faq.html', FAQ_URL);
     if (privacy) privacy.href = pageHref(data.privacyUrl, 'privacy.html', PRIVACY_URL);
     if (feedback) {
-      feedback.href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('B站字幕提取与整理助手反馈')}`;
+      feedback.href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('B站字幕提取助手反馈')}`;
       feedback.textContent = `反馈邮箱：${FEEDBACK_EMAIL}`;
     }
     applyRemoteButtons(root, data);
@@ -55,7 +56,21 @@ export function bindPromo(root = document) {
     coop: { enabled: true },
     stats: { enabled: false }
   });
-  loadContent();
+  const ready = loadContent();
 
-  return { loadContent, rating, sheets };
+  return {
+    loadContent,
+    sheets,
+    rating: {
+      ...rating,
+      async noteSuccess() {
+        await ready;
+        return rating.noteSuccess();
+      },
+      async restoreIfNeeded() {
+        await ready;
+        return rating.restoreIfNeeded();
+      }
+    }
+  };
 }

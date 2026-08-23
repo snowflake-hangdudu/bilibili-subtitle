@@ -2,7 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isBilibiliVideoPage, parseVideoId, partFromUrl } from '../src/platform/bilibili/ids.js';
 import { tracksFromPlayerPayload } from '../src/platform/bilibili/adapter.js';
-import { detectVideoContext, reconcileContext } from '../src/features/video-context/detect.js';
+import {
+  contextMatchesHref,
+  cuesFitDuration,
+  cuesMatchVideo,
+  detectVideoContext,
+  pageResultTrustworthy,
+  reconcileContext
+} from '../src/features/video-context/detect.js';
 
 test('parse bv and av urls', () => {
   assert.deepEqual(parseVideoId('https://www.bilibili.com/video/BV1xx411c7mD?p=2'), { kind: 'bvid', value: 'BV1xx411c7mD' });
@@ -27,6 +34,26 @@ test('prefer url id when initial state is stale', () => {
   assert.equal(next.cid, undefined);
   assert.equal(next.partNo, 2);
   assert.match(next.fingerprint, /BV1yy411c7mE/);
+});
+
+test('reject leftover cues that outlast the current video', () => {
+  const href = 'https://www.bilibili.com/video/BV1hk3d63EXo';
+  assert.equal(contextMatchesHref({ bvid: 'BV1hk3d63EXo' }, href), true);
+  assert.equal(contextMatchesHref({ bvid: 'BV1xx411c7mD' }, href), false);
+  assert.equal(cuesFitDuration([{ startMs: 0, endMs: 463000 }], 463), true);
+  assert.equal(cuesFitDuration([{ startMs: 0, endMs: 3660000 }], 463), false);
+  assert.equal(cuesMatchVideo([{ startMs: 0, endMs: 1716000 }], 57), false);
+  assert.equal(cuesMatchVideo([{ startMs: 0, endMs: 180000 }], 600), true);
+  assert.equal(cuesMatchVideo([{ startMs: 0, endMs: 50000 }], 463), true);
+  assert.equal(cuesMatchVideo([{ startMs: 0, endMs: 50000 }], 463, { requireCoverage: true }), false);
+  assert.equal(pageResultTrustworthy({
+    video: { bvid: 'BV1hk3d63EXo', durationSec: 463, staleState: false },
+    cues: [{ startMs: 0, endMs: 3660000 }]
+  }, href), false);
+  assert.equal(pageResultTrustworthy({
+    video: { bvid: 'BV1hk3d63EXo', durationSec: 463, staleState: true },
+    cues: [{ startMs: 0, endMs: 400000 }]
+  }, href), false);
 });
 
 test('normalize subtitle tracks', () => {

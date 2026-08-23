@@ -70,11 +70,11 @@ export function bindRating(root, getRating) {
 
   async function noteSuccess() {
     const rating = getRating();
-    if (!ratingEnabled(rating, version()) || !card) return false;
     const state = await loadState();
     if (state.neverAsk) return false;
     const successCount = (Number(state.successCount) || 0) + 1;
     await saveState({ successCount, dismissedUntilNextSuccess: false });
+    if (!ratingEnabled(rating, version()) || !card) return false;
     if (successCount < ratingMinSuccess(rating)) return false;
     show();
     return true;

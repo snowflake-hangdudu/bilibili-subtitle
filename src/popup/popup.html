@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>B站字幕提取与整理助手</title>
+  <title>B站字幕提取助手</title>
   <link rel="stylesheet" href="../shared/theme.css" />
   <link rel="stylesheet" href="../shared/promo.css" />
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
+  <script>if (new URLSearchParams(location.search).has('panel')) document.documentElement.classList.add('is-panel');</script>
   <div class="wrap">
     <div id="home" class="home">
     <header class="hero">
       <div class="brand-row">
         <img class="brand-icon" src="../../public/icons/icon32.png" alt="" />
         <div>
-          <div class="brand">字幕提取与整理 <span class="version">v1.0</span></div>
+          <div class="brand">字幕提取助手 <span class="version">v1.0</span></div>
           <p>把已有字幕变成可搜索、可导出的学习资料</p>
         </div>
       </div>
@@ -42,35 +43,34 @@
         <div id="video-title" class="video-title"></div>
         <div id="video-sub" class="video-sub"></div>
       </div>
-      <label class="field" for="track-select">
+      <label id="track-field" class="field" for="track-select">
         <span>字幕轨道</span>
         <select id="track-select"></select>
+        <p id="track-empty" class="track-empty hidden">这个视频没有可提取的字幕轨道</p>
       </label>
     </section>
 
-    <section class="card compact">
-      <label class="check" for="merge-short">
-        <input id="merge-short" type="checkbox" checked />
-        <span class="box">✓</span>
-        <span>合并过短的相邻字幕</span>
-      </label>
-    </section>
+    <label class="check merge-row" for="merge-short">
+      <input id="merge-short" type="checkbox" checked />
+      <span class="box">✓</span>
+      <span>合并过短的相邻字幕</span>
+    </label>
 
-    <div class="actions">
+    <div id="extract-actions" class="actions">
       <button id="btn-options" type="button">设置</button>
       <button id="btn-extract" class="primary" type="button" disabled>提取字幕 <span>→</span></button>
     </div>
     <button id="btn-retry" class="ghost hidden" type="button">重试</button>
     <button id="btn-workspace" class="ghost hidden" type="button">打开字幕工作台</button>
     <div id="status" class="status" role="status"></div>
-    <div id="store-rating" class="store-rating hidden" role="note">
-      <p class="store-rating-title">字幕整理好了 ⭐ 给个好评呗</p>
-      <p class="store-rating-text" data-rating-text>用着顺手的话，去商店点个分。</p>
-      <button type="button" class="store-rating-primary" data-action="rate">去商店评分 ⭐</button>
-      <div class="store-rating-actions">
-        <button type="button" class="store-rating-ghost" data-action="later">下次再说</button>
-        <button type="button" class="store-rating-ghost" data-action="never">别再问了</button>
+    <div id="debug-box" class="debug-box hidden">
+      <div class="debug-bar">
+        <span>调试日志</span>
+        <span id="debug-count">0</span>
+        <button id="debug-copy" type="button">复制</button>
+        <button id="debug-clear" type="button">清空</button>
       </div>
+      <pre id="debug-log">暂无日志</pre>
     </div>
     <footer class="promo-footer">
       <div id="promo-stats" class="promo-stats hidden"></div>
@@ -79,7 +79,7 @@
         <a id="link-privacy" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
         <button type="button" class="promo-link" data-sheet="notice">公告</button>
         <button type="button" class="promo-link" data-sheet="coop">开发合作</button>
-        <a id="link-feedback" class="promo-feedback" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取与整理助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
+        <a id="link-feedback" class="promo-feedback" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
       </div>
     </footer>
     </div>

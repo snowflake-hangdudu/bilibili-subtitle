@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>字幕工作台 · B站字幕提取与整理助手</title>
+  <title>字幕工作台 · B站字幕提取助手</title>
   <link rel="stylesheet" href="../shared/theme.css" />
   <link rel="stylesheet" href="../shared/promo.css" />
   <link rel="stylesheet" href="workspace.css" />
@@ -40,8 +40,8 @@
       <section class="panel">
         <div class="label">导出</div>
         <div class="formats">
-          <label><input type="radio" name="format" value="markdown" checked /> Markdown</label>
-          <label><input type="radio" name="format" value="txt" /> TXT</label>
+          <label><input type="radio" name="format" value="txt" checked /> TXT</label>
+          <label><input type="radio" name="format" value="markdown" /> Markdown</label>
           <label><input type="radio" name="format" value="srt" /> SRT</label>
         </div>
         <label class="check"><input id="include-ts" type="checkbox" checked /> 导出时带时间轴</label>
@@ -51,7 +51,7 @@
         </div>
         <button id="btn-export" class="primary" type="button">导出文件</button>
       </section>
-      <p class="hint">时间轴只作对照，不会改播放进度。数据只存在这台电脑上。</p>
+      <div class="side-tail">
       <div id="store-rating" class="store-rating hidden" role="note">
         <p class="store-rating-title">字幕整理好了 ⭐ 给个好评呗</p>
         <p class="store-rating-text" data-rating-text>用着顺手的话，去商店点个分。</p>
@@ -61,6 +61,17 @@
           <button type="button" class="store-rating-ghost" data-action="never">别再问了</button>
         </div>
       </div>
+      <p class="hint">时间轴只作对照，不会改播放进度。数据只存在这台电脑上。</p>
+      <div id="debug-box" class="debug-box hidden">
+        <div class="debug-bar">
+          <span>调试日志</span>
+          <span id="debug-count">0</span>
+          <button id="debug-copy" type="button">复制</button>
+          <button id="debug-clear" type="button">清空</button>
+        </div>
+        <pre id="debug-log">暂无日志</pre>
+      </div>
+      </div>
       <footer class="promo-footer">
         <div id="promo-stats" class="promo-stats hidden"></div>
         <div class="promo-links">
@@ -68,7 +79,7 @@
           <a id="link-privacy" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
           <button type="button" class="promo-link" data-sheet="notice">公告</button>
           <button type="button" class="promo-link" data-sheet="coop">开发合作</button>
-          <a id="link-feedback" class="promo-feedback" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取与整理助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
+          <a id="link-feedback" class="promo-feedback" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
         </div>
       </footer>
       </div>

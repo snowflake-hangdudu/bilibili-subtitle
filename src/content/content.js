@@ -3,7 +3,8 @@ import { cleanCues } from '../features/subtitle/cleaner.js';
 import { createAppError, ErrorCode, toErrorPayload } from '../shared/errors.js';
 import { isBilibiliVideoPage } from '../platform/bilibili/ids.js';
 import { tracksFromPlayerPayload } from '../platform/bilibili/adapter.js';
-import { reconcileContext } from '../features/video-context/detect.js';
+import { cuesMatchVideo, reconcileContext } from '../features/video-context/detect.js';
+import { mountPanel } from './panel.js';
 
 const AGENT = 'bsh-agent';
 const CONTENT = 'bsh-content';
@@ -26,6 +27,7 @@ window.addEventListener('message', (event) => {
   if (!data || data.source !== AGENT || event.source !== window) return;
   if (data.type === 'VIDEO_CHANGED') {
     chrome.runtime.sendMessage({ type: 'VIDEO_CHANGED', context: data.context }).catch(() => {});
+    document.getElementById('bsh-menu')?.querySelector('iframe')?.contentWindow?.postMessage({ type: 'BSH_VIDEO_CHANGED' }, '*');
     return;
   }
   if (!data.id || !pending.has(data.id)) return;
@@ -62,14 +64,7 @@ async function getStatus() {
   };
 }
 
-async function extractSubtitle({ trackId, mergeShortLines }) {
-  const status = await getStatus();
-  const track = status.tracks.find((item) => item.id === String(trackId)) || status.tracks[0];
-  if (!track) throw createAppError(ErrorCode.NO_SUBTITLE);
-  if (!track.url) {
-    throw createAppError(status.loginHint ? ErrorCode.LOGIN_REQUIRED : ErrorCode.NO_SUBTITLE);
-  }
-
+async function fetchTrackCues(track, mergeShortLines) {
   let payload;
   try {
     const result = await callAgent('FETCH_SUBTITLE', { url: track.url }, 20000);
@@ -81,27 +76,55 @@ async function extractSubtitle({ trackId, mergeShortLines }) {
     }
     payload = fallback.payload;
   }
-
   const parsed = await parseSubtitleTree(payload, async (url) => {
     const result = await callAgent('FETCH_SUBTITLE', { url }, 20000);
     return result.payload;
   });
-  const cues = cleanCues(parsed, { mergeShortLines });
-  if (!cues.length) throw createAppError(ErrorCode.EMPTY_AFTER_CLEAN);
-
   return {
-    video: status.context,
-    track,
-    tracks: status.tracks,
-    cues,
-    rawCueCount: parsed.length,
-    extractedAt: Date.now()
+    parsed,
+    cues: cleanCues(parsed, { mergeShortLines })
   };
 }
 
+async function extractSubtitle({ trackId, mergeShortLines }) {
+  const status = await getStatus();
+  const ordered = [...status.tracks];
+  const preferred = ordered.find((item) => item.id === String(trackId));
+  if (preferred) {
+    ordered.splice(ordered.indexOf(preferred), 1);
+    ordered.unshift(preferred);
+  }
+  if (!ordered.length) throw createAppError(ErrorCode.NO_SUBTITLE);
+
+  for (const track of ordered) {
+    if (!track.url) continue;
+    try {
+      const { parsed, cues } = await fetchTrackCues(track, mergeShortLines);
+      if (!cues.length) continue;
+      if (!cuesMatchVideo(cues, status.context?.durationSec, { requireCoverage: true })) continue;
+      return {
+        video: status.context,
+        track,
+        tracks: status.tracks,
+        cues,
+        rawCueCount: parsed.length,
+        extractedAt: Date.now()
+      };
+    } catch {
+      // 换下一条轨道
+    }
+  }
+
+  throw createAppError(ErrorCode.NO_SUBTITLE, {
+    message: '页面轨道与当前视频对不上，已换源。'
+  });
+}
+
 console.info('[BSH] content ready', location.href);
+mountPanel();
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'TOGGLE_PANEL') return undefined;
   const run = async () => {
     if (message?.type === 'PING') return { ok: true, href: location.href };
     if (message?.type === 'GET_STATUS') return { ok: true, ...(await getStatus()) };

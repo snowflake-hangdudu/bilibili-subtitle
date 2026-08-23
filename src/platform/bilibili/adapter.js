@@ -40,6 +40,17 @@ export function tracksFromPlayerPayload(payload) {
   return list.map((item, index) => normalizeTrack(item, index)).filter((track) => track.id);
 }
 
+function positiveNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+export function durationFromPlayerData(data) {
+  const timeLength = positiveNumber(data?.timelength);
+  if (!timeLength) return undefined;
+  return timeLength > 36_000 ? timeLength / 1000 : timeLength;
+}
+
 export function contextFromViewPayload(payload, href = '') {
   const data = payload?.data || payload || {};
   const pages = Array.isArray(data.pages) ? data.pages : [];
@@ -47,6 +58,8 @@ export function contextFromViewPayload(payload, href = '') {
   const current = pages[partNo - 1] || pages.find((page) => Number(page.cid) === Number(data.cid)) || pages[0] || {};
   const owner = data.owner?.name || data.ownerName || '';
   const id = parseVideoId(href) || {};
+  const partDuration = positiveNumber(current.duration);
+  const totalDuration = positiveNumber(data.duration);
   return {
     title: String(data.title || current.part || ''),
     bvid: String(data.bvid || (id.kind === 'bvid' ? id.value : '') || ''),
@@ -64,7 +77,8 @@ export function contextFromViewPayload(payload, href = '') {
       page: Number(page.page || 0),
       part: String(page.part || '')
     })),
-    fingerprint: `${data.bvid || (id.kind === 'bvid' ? id.value : data.aid || '')}|${current.cid || data.cid || partNo}`
+    fingerprint: `${data.bvid || (id.kind === 'bvid' ? id.value : data.aid || '')}|${current.cid || data.cid || partNo}`,
+    durationSec: partDuration || (pages.length > 1 ? undefined : totalDuration)
   };
 }
 
@@ -99,6 +113,18 @@ export function playerApiUrl(context) {
   if (context.aid) params.set('aid', String(context.aid));
   if (context.cid) params.set('cid', String(context.cid));
   return `https://api.bilibili.com/x/player/v2?${params.toString()}`;
+}
+
+export function playerPayloadMatches(context, payload) {
+  const data = payload?.data || payload || {};
+  const cid = Number(data.cid);
+  if (context.cid) {
+    if (!Number.isFinite(cid) || cid <= 0) return false;
+    if (Number(context.cid) !== cid) return false;
+  }
+  const bvid = String(data.bvid || '');
+  if (context.bvid && bvid && bvid.toLowerCase() !== String(context.bvid).toLowerCase()) return false;
+  return true;
 }
 
 export function classifyPlayerError(payload) {

@@ -1,6 +1,7 @@
 import { createAppError, ErrorCode, toErrorPayload } from '../shared/errors.js';
 import { buildExportContent, buildFilename, mimeForFormat } from '../features/export/exporter.js';
 import { extractByHref, identifyByHref } from '../features/video-context/remote.js';
+import { contextMatchesHref, cuesMatchVideo } from '../features/video-context/detect.js';
 import { applyVideoChange, videoUrlWithPart } from '../features/video-context/sync.js';
 import { isBilibiliVideoPage } from '../platform/bilibili/ids.js';
 import { loadSettings, saveSettings } from '../storage/settings.js';
@@ -8,6 +9,10 @@ import { clearSession, loadSession, saveDiagnostic, saveSession } from '../stora
 import { CONFIG_MESSAGE, CONFIG_URL } from '../features/remote/config.js';
 
 const WORKSPACE_PATH = 'src/workspace/workspace.html';
+const WORKSPACE_TAB_KEY = 'bsh.workspaceTabId';
+
+let workspaceTabId = 0;
+let openingWorkspace = null;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -95,6 +100,11 @@ async function navigateAndWait(tabId, url) {
   await done;
 }
 
+function senderVideoTabId(sender) {
+  if (sender?.tab?.id && isBilibiliVideoPage(sender.tab.url || '')) return sender.tab.id;
+  return 0;
+}
+
 async function resolveTab(tabId) {
   if (tabId) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
@@ -102,8 +112,8 @@ async function resolveTab(tabId) {
     return tab;
   }
   const tab = await activeTab();
-  if (!tab?.id) throw createAppError(ErrorCode.NOT_VIDEO_PAGE);
-  return tab;
+  if (tab?.id && isBilibiliVideoPage(tab.url || '')) return tab;
+  throw createAppError(ErrorCode.NOT_VIDEO_PAGE);
 }
 
 async function pingTab(tabId) {
@@ -116,44 +126,81 @@ async function pingTab(tabId) {
 }
 
 async function statusFromTab(tab) {
-  const pageReady = await pingTab(tab.id);
-  const debug = { url: tab.url || '', pageReady, source: 'page' };
-  if (pageReady) {
-    const result = await sendToTab(tab.id, { type: 'GET_STATUS' });
-    if (!result?.ok) throw Object.assign(new Error(result?.error?.message || '识别失败'), result?.error || {});
-    return { ...result, tabId: tab.id, debug };
-  }
-  const fallback = await identifyByHref(tab.url || '', fetchUrl);
-  debug.source = 'api-fallback';
-  debug.trackCount = fallback.trackCount;
-  await saveDiagnostic({
-    code: 'API_FALLBACK',
-    message: '页面脚本未就绪，已改用接口识别',
-    detail: tab.url || '',
-    tab: tab.url || ''
-  });
-  return { ok: true, ...fallback, tabId: tab.id, debug };
+  const href = tab.url || '';
+  const debug = [];
+  const log = (line) => debug.push(String(line));
+  const fallback = await identifyByHref(href, fetchUrl, { log });
+  return {
+    ok: true,
+    ...fallback,
+    tabId: tab.id,
+    debug,
+    pageReady: await pingTab(tab.id)
+  };
+}
+
+async function acceptExtract(extracted, href, source, debug) {
+  if (!extracted?.cues?.length) return null;
+  if (!contextMatchesHref(extracted.video, href)) return null;
+  if (!cuesMatchVideo(extracted.cues, extracted.video?.durationSec, {
+    requireCoverage: String(source).startsWith('page')
+  })) return null;
+  debug.push(`accepted source=${source} cues=${extracted.cues.length} duration=${extracted.video?.durationSec || 0}`);
+  return { ...extracted, tabId: undefined, pageUrl: href, source, debug };
 }
 
 async function extractFromTab(tab, options = {}) {
-  const pageReady = await pingTab(tab.id);
-  if (pageReady) {
-    const result = await sendToTab(tab.id, {
-      type: 'EXTRACT',
-      trackId: options.trackId,
-      mergeShortLines: options.mergeShortLines
-    });
-    if (!result?.ok) throw Object.assign(new Error(result?.error?.message || '提取失败'), result?.error || {});
-    return { ...result.result, tabId: tab.id, source: 'page' };
+  const href = tab.url || '';
+  const debug = [];
+  const log = (line) => debug.push(String(line));
+  log(`tab ${tab.id} ${href}`);
+
+  const attempts = [
+    { label: 'api', trackId: options.trackId },
+    { label: 'api-all', trackId: '' },
+    { label: 'page', trackId: options.trackId, page: true },
+    { label: 'page-all', trackId: '', page: true }
+  ];
+
+  let lastError = null;
+  for (const attempt of attempts) {
+    log(`try ${attempt.label}`);
+    try {
+      if (attempt.page) {
+        if (!(await pingTab(tab.id))) {
+          log('page script not ready');
+          continue;
+        }
+        const page = await sendToTab(tab.id, {
+          type: 'EXTRACT',
+          trackId: attempt.trackId,
+          mergeShortLines: options.mergeShortLines
+        });
+        const extracted = page?.result;
+        const accepted = await acceptExtract(extracted, href, attempt.label, debug);
+        if (accepted) return { ...accepted, tabId: tab.id };
+        log(`reject ${attempt.label} cues=${extracted?.cues?.length || 0} duration=${extracted?.video?.durationSec || 0}`);
+        continue;
+      }
+      const result = await extractByHref(href, fetchUrl, {
+        trackId: attempt.trackId,
+        mergeShortLines: options.mergeShortLines,
+        log
+      });
+      const accepted = await acceptExtract(result, href, attempt.label, debug);
+      if (accepted) return { ...accepted, tabId: tab.id };
+      log(`reject ${attempt.label}`);
+    } catch (error) {
+      lastError = error;
+      log(`${attempt.label} ${error.code || 'ERR'} ${error.message || error}`);
+    }
   }
-  const result = await extractByHref(tab.url || '', fetchUrl, options);
-  await saveDiagnostic({
-    code: 'API_FALLBACK',
-    message: '页面脚本未就绪，已改用接口提取',
-    detail: tab.url || '',
-    tab: tab.url || ''
+
+  const error = lastError || createAppError(ErrorCode.NO_SUBTITLE, {
+    message: '已自动换源，仍对不上当前视频。'
   });
-  return { ...result, tabId: tab.id };
+  error.detail = [error.detail, ...debug].filter(Boolean).join('\n');
+  throw error;
 }
 
 async function extractOnTab(tabId, options = {}) {
@@ -162,14 +209,15 @@ async function extractOnTab(tabId, options = {}) {
   const session = {
     ...result,
     tabId: tab.id,
+    pageUrl: tab.url || result.video?.url || '',
     stale: false,
     changedTo: undefined
   };
-  await saveSession(session);
+  if (options.commit) await saveSession(session);
   return session;
 }
 
-async function switchAndExtract({ tabId, partNo, trackId, mergeShortLines } = {}) {
+async function switchAndExtract({ tabId, partNo, trackId, mergeShortLines, commit } = {}) {
   const tab = tabId ? await chrome.tabs.get(tabId).catch(() => null) : await activeTab();
   if (!tab?.id) throw createAppError(ErrorCode.TAB_GONE);
   if (!isBilibiliVideoPage(tab.url || '')) throw createAppError(ErrorCode.NOT_VIDEO_PAGE);
@@ -183,20 +231,92 @@ async function switchAndExtract({ tabId, partNo, trackId, mergeShortLines } = {}
 
   return extractOnTab(tab.id, {
     trackId: trackId || settings.lastTrackId,
-    mergeShortLines: mergeShortLines ?? settings.mergeShortLines
+    mergeShortLines: mergeShortLines ?? settings.mergeShortLines,
+    commit: commit !== false
   });
 }
 
-async function openWorkspace() {
-  const url = chrome.runtime.getURL(WORKSPACE_PATH);
-  const tabs = await chrome.tabs.query({ url });
-  if (tabs[0]?.id) {
-    await chrome.tabs.update(tabs[0].id, { active: true });
-    if (tabs[0].windowId) await chrome.windows.update(tabs[0].windowId, { focused: true });
-    return { tabId: tabs[0].id };
+function workspaceUrl() {
+  return chrome.runtime.getURL(WORKSPACE_PATH);
+}
+
+async function rememberWorkspaceTab(tabId) {
+  workspaceTabId = tabId || 0;
+  try {
+    if (tabId) await chrome.storage.session.set({ [WORKSPACE_TAB_KEY]: tabId });
+    else await chrome.storage.session.remove(WORKSPACE_TAB_KEY);
+  } catch {
+    // 旧内核没有 session storage 时只记内存
   }
-  const tab = await chrome.tabs.create({ url });
+}
+
+async function listWorkspaceTabIds() {
+  const ids = new Set();
+  if (chrome.runtime.getContexts) {
+    try {
+      const contexts = await chrome.runtime.getContexts({
+        contextTypes: ['TAB'],
+        documentUrls: [workspaceUrl()]
+      });
+      for (const ctx of contexts) {
+        if (ctx.tabId) ids.add(ctx.tabId);
+      }
+    } catch {
+      // 走下面的兜底
+    }
+  }
+  const cached = workspaceTabId || (await chrome.storage.session.get(WORKSPACE_TAB_KEY).catch(() => ({})))[WORKSPACE_TAB_KEY];
+  if (cached) {
+    try {
+      const tab = await chrome.tabs.get(cached);
+      if (tab?.id) ids.add(tab.id);
+    } catch {
+      if (cached === workspaceTabId) await rememberWorkspaceTab(0);
+    }
+  }
+  return [...ids];
+}
+
+async function focusWorkspaceTab(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  await chrome.tabs.update(tab.id, { active: true });
+  if (tab.windowId) await chrome.windows.update(tab.windowId, { focused: true });
+  await rememberWorkspaceTab(tab.id);
   return { tabId: tab.id };
+}
+
+async function closeExtraWorkspaceTabs(keepId) {
+  const ids = await listWorkspaceTabIds();
+  await Promise.all(ids.filter((id) => id !== keepId).map((id) => chrome.tabs.remove(id).catch(() => {})));
+}
+
+async function openWorkspace() {
+  if (openingWorkspace) return openingWorkspace;
+  openingWorkspace = (async () => {
+    const existing = await listWorkspaceTabIds();
+    if (existing[0]) {
+      await closeExtraWorkspaceTabs(existing[0]);
+      return focusWorkspaceTab(existing[0]);
+    }
+    const tab = await chrome.tabs.create({ url: workspaceUrl() });
+    await rememberWorkspaceTab(tab.id);
+    return { tabId: tab.id };
+  })();
+  try {
+    return await openingWorkspace;
+  } finally {
+    openingWorkspace = null;
+  }
+}
+
+async function claimWorkspace(tabId) {
+  const ids = await listWorkspaceTabIds();
+  const keep = ids.includes(workspaceTabId) ? workspaceTabId : (ids[0] || tabId);
+  if (keep) {
+    await closeExtraWorkspaceTabs(keep);
+    await rememberWorkspaceTab(keep);
+  }
+  return { tabId: keep || 0 };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -209,12 +329,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { ok: true };
     }
     if (message?.type === 'OPEN_WORKSPACE') return { ok: true, ...(await openWorkspace()) };
+    if (message?.type === 'WORKSPACE_HELLO') return { ok: true, ...(await claimWorkspace(sender.tab?.id)) };
     if (message?.type === 'FETCH_URL') {
       const payload = await fetchUrl(message.url);
       return { ok: true, payload };
     }
     if (message?.type === 'DOWNLOAD_EXPORT') return { ok: true, ...(await downloadText(message)) };
     if (message?.type === 'VIDEO_CHANGED') {
+      const session = await loadSession();
+      if (!session?.video) return { ok: true };
+      if (session.tabId && sender.tab?.id && session.tabId !== sender.tab.id) return { ok: true };
+      if (session.extractedAt && Date.now() - session.extractedAt < 2500) return { ok: true };
       let context = message.context || {};
       const tabId = sender.tab?.id;
       if (tabId) {
@@ -231,25 +356,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // 页面刚切过去时可能还没准备好，先用已有 context
         }
       }
-      const session = await loadSession();
       const next = applyVideoChange(session, context);
       if (next && next !== session) await saveSession(next);
       return { ok: true };
     }
     if (message?.type === 'EXTRACT_CURRENT') {
-      const tab = await resolveTab(message.tabId);
+      const tab = await resolveTab(message.tabId || senderVideoTabId(sender));
       const session = await extractOnTab(tab.id, {
         trackId: message.trackId,
-        mergeShortLines: message.mergeShortLines
+        mergeShortLines: message.mergeShortLines,
+        commit: message.commit !== false
       });
       return { ok: true, session };
     }
     if (message?.type === 'SWITCH_AND_EXTRACT') {
-      const session = await switchAndExtract(message);
+      const session = await switchAndExtract({ ...message, commit: message.commit !== false });
       return { ok: true, session };
     }
+    if (message?.type === 'COMMIT_SESSION') {
+      const session = message.session;
+      if (!session?.cues?.length || !session.video) {
+        throw createAppError(ErrorCode.EMPTY_AFTER_CLEAN, { message: '没有可写入工作台的字幕' });
+      }
+      const next = { ...session, stale: false, changedTo: undefined };
+      await saveSession(next);
+      return { ok: true, session: next };
+    }
     if (message?.type === 'STATUS_CURRENT') {
-      const tab = await resolveTab(message.tabId);
+      const tab = await resolveTab(message.tabId || senderVideoTabId(sender));
       return statusFromTab(tab);
     }
     if (message?.type === 'LOG_ERROR') {
@@ -280,4 +414,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: false, error: payload });
     });
   return true;
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (tabId === workspaceTabId) rememberWorkspaceTab(0);
 });
