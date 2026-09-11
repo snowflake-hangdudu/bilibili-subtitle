@@ -1,0 +1,13 @@
+:root,
+[data-theme="bilibili"],
+[data-theme="subtitle"] {
+  --btu-accent: #00aeec;
+  --btu-accent-hover: #009fd8;
+  --btu-accent-strong: #007fba;
+  --btu-accent-soft: #eaf9ff;
+  --btu-accent-border: #a9e8fa;
+  --btu-accent-ring: rgba(0, 174, 236, 0.18);
+  --btu-brand-cta: #0096d6;
+  --btu-footer-bg: #f3f4f6;
+  --btu-footer-text: #52525b;
+}

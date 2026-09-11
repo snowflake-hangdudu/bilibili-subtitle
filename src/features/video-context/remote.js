@@ -42,7 +42,7 @@ export async function identifyByHref(href, fetchJson, { log } = {}) {
   }
 
   const context = reconcileContext(href, contextFromViewPayload(view, href));
-  note(`view ${context.bvid || context.aid} cid=${context.cid} duration=${context.durationSec || 0}s title=${context.title || ''}`);
+  note(`view BV=${context.bvid || ''} aid=${context.aid || ''} cid=${context.cid} duration=${context.durationSec || 0}s title=${context.title || ''}`);
   if (!context.bvid && !context.aid) {
     throw createAppError(ErrorCode.NO_CONTEXT, { detail: `view-empty:${id.kind}=${id.value}` });
   }
@@ -73,11 +73,16 @@ export async function identifyByHref(href, fetchJson, { log } = {}) {
   if (loginHint && !tracks.length) throw createAppError(ErrorCode.LOGIN_REQUIRED, { detail: `player:${playerCode}` });
   const trusted = tracks.filter((track) => {
     const ok = aiSubtitleUrlMatches(track.url, context);
-    if (!ok) note(`drop foreign ${shortUrl(track.url)}`);
+    if (!ok) note(`drop foreign ${shortUrl(track.url)} aid=${context.aid || ''} cid=${context.cid || ''}`);
     return ok;
   });
+  const rawCount = tracks.length;
   tracks = trusted;
-  note(`tracks ${tracks.map((item) => `${item.label}:${shortUrl(item.url)}`).join(' | ') || 'none'}`);
+  if (!tracks.length && rawCount > 0) {
+    note(`tracks none (player raw=${rawCount}, all dropped as foreign; refresh page for page-agent fallback)`);
+  } else {
+    note(`tracks ${tracks.map((item) => `${item.label}:${shortUrl(item.url)}`).join(' | ') || 'none'}`);
+  }
 
   return {
     context,

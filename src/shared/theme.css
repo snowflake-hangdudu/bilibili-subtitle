@@ -1,28 +1,28 @@
+@import url("../ui/tokens.css");
+@import url("../ui/themes/subtitle.css");
+@import url("../ui/components.css");
+
 :root {
-  --bsh-brand: #f7477f;
-  --bsh-brand-deep: #de2f68;
-  --bsh-brand-soft: #fff1f5;
-  --bsh-brand-ring: rgba(247, 71, 127, 0.16);
-  --bsh-text: #1c1917;
-  --bsh-sub: #57534e;
-  --bsh-muted: #8a847e;
-  --bsh-line: #ece8e5;
-  --bsh-bg: #f7f6f4;
-  --bsh-card: #ffffff;
-  --bsh-ok: #047857;
-  --bsh-ok-bg: #ecfdf5;
-  --bsh-ok-line: #a7f3d0;
-  --bsh-warn: #b45309;
-  --bsh-warn-bg: #fffbeb;
-  --bsh-warn-line: #fde68a;
-  --bsh-danger: #be123c;
-  --bsh-danger-bg: #fff1f2;
-  --bsh-danger-line: #fecdd3;
-  --bsh-info: #0369a1;
-  --bsh-info-bg: #f0f9ff;
-  --bsh-info-line: #bae6fd;
-  --bsh-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
-  --bsh-radius: 14px;
+  --bsh-brand: var(--btu-accent);
+  --bsh-brand-deep: var(--btu-accent-strong);
+  --bsh-brand-soft: var(--btu-accent-soft);
+  --bsh-brand-ring: var(--btu-accent-ring);
+  --bsh-text: var(--btu-text-primary);
+  --bsh-sub: var(--btu-text-secondary);
+  --bsh-muted: var(--btu-text-tertiary);
+  --bsh-line: var(--btu-border);
+  --bsh-bg: var(--btu-bg-page);
+  --bsh-card: var(--btu-bg-surface);
+  --bsh-ok: var(--btu-success);
+  --bsh-ok-bg: var(--btu-success-soft);
+  --bsh-warn: var(--btu-warn);
+  --bsh-warn-bg: var(--btu-warn-soft);
+  --bsh-danger: var(--btu-danger);
+  --bsh-danger-bg: var(--btu-danger-soft);
+  --bsh-info: var(--btu-accent);
+  --bsh-info-bg: var(--btu-accent-soft);
+  --bsh-shadow: var(--btu-shadow-popup);
+  --bsh-radius: var(--btu-radius-md);
   color-scheme: light;
 }
 
@@ -32,7 +32,8 @@ html, body {
   margin: 0;
   color: var(--bsh-text);
   background: var(--bsh-bg);
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Segoe UI", sans-serif;
+  font-family: var(--btu-font);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,

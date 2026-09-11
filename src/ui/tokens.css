@@ -1,0 +1,47 @@
+:root {
+  --btu-space-1: 4px;
+  --btu-space-2: 8px;
+  --btu-space-3: 12px;
+  --btu-space-4: 16px;
+  --btu-space-5: 24px;
+
+  --btu-radius-xs: 5px;
+  --btu-radius-sm: 6px;
+  --btu-radius-md: 8px;
+  --btu-radius-lg: 10px;
+
+  --btu-text-primary: #18181b;
+  --btu-text-secondary: #52525b;
+  --btu-text-tertiary: #71717a;
+  --btu-bg-page: #f7f8fa;
+  --btu-bg-surface: #ffffff;
+  --btu-border: #e4e4e7;
+  --btu-border-soft: #eef0f2;
+  --btu-fill-muted: #f2f4f7;
+
+  --btu-success: #16a34a;
+  --btu-success-soft: #ecfdf5;
+  --btu-warn: #d97706;
+  --btu-warn-soft: #fffbeb;
+  --btu-danger: #b42318;
+  --btu-danger-soft: #fff5f5;
+
+  --btu-popup-width: 380px;
+  --btu-shell-padding: 0;
+  --btu-header-min-height: 44px;
+  --btu-row-min-height: 52px;
+  --btu-icon-slot: 30px;
+  --btu-switch-width: 38px;
+  --btu-switch-height: 22px;
+  --btu-btn-height: 32px;
+  --btu-btn-height-md: 44px;
+  --btu-shadow-popup: none;
+  --btu-shadow-card: none;
+
+  --btu-font:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif;
+}

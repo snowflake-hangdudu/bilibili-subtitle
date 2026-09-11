@@ -1,6 +1,6 @@
 {
   "name": "bilibili-subtitle-helper",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "提取 B站视频已有字幕，清洗后可搜索并导出。",

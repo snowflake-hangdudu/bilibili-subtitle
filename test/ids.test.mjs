@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isBilibiliVideoPage, parseVideoId, partFromUrl } from '../src/platform/bilibili/ids.js';
-import { tracksFromPlayerPayload } from '../src/platform/bilibili/adapter.js';
+import { contextFromViewData, tracksFromPlayerPayload } from '../src/platform/bilibili/adapter.js';
 import {
   contextMatchesHref,
   cuesFitDuration,
@@ -54,6 +54,24 @@ test('reject leftover cues that outlast the current video', () => {
     video: { bvid: 'BV1hk3d63EXo', durationSec: 463, staleState: true },
     cues: [{ startMs: 0, endMs: 400000 }]
   }, href), false);
+});
+
+test('view payload restores cid for stale page context', () => {
+  const href = 'https://www.bilibili.com/video/BV1yy411c7mE?p=1';
+  const next = contextFromViewData(
+    { bvid: 'BV1yy411c7mE', staleState: true, url: href },
+    {
+      title: '新视频',
+      bvid: 'BV1yy411c7mE',
+      aid: 123456,
+      pages: [{ cid: 987654, page: 1, part: '正片' }]
+    },
+    href
+  );
+  assert.equal(next.staleState, false);
+  assert.equal(next.cid, 987654);
+  assert.equal(next.aid, 123456);
+  assert.equal(next.title, '新视频');
 });
 
 test('normalize subtitle tracks', () => {

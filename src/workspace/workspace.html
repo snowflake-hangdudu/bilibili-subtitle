@@ -8,80 +8,96 @@
   <link rel="stylesheet" href="../shared/promo.css" />
   <link rel="stylesheet" href="workspace.css" />
 </head>
-<body>
+<body data-theme="bilibili">
   <div class="app">
     <aside class="side">
-      <div id="home" class="side-home">
-      <div class="brand">
-        <img src="../../public/icons/icon48.png" alt="" />
-        <div>
-          <strong>字幕工作台</strong>
+      <div id="home" class="side-shell">
+        <div class="side-scroll">
+          <div class="brand">
+            <img src="../../icons/icon48.png?v=3" alt="" />
+            <div>
+              <strong>字幕工作台</strong>
+            </div>
+          </div>
+          <section class="panel meta-panel">
+            <div id="video-title" class="video-title">尚未提取字幕</div>
+            <div id="video-sub" class="muted">从扩展弹窗选择字幕轨道并提取。</div>
+            <div id="stale-banner" class="banner hidden">
+              <div id="stale-text">视频已切换。当前列表仍是上一份字幕。</div>
+              <button id="btn-extract-current" type="button">提取当前视频</button>
+            </div>
+            <label id="part-field" class="field hidden">
+              <span>分P</span>
+              <select id="part-select"></select>
+            </label>
+          </section>
+          <section class="panel search-panel">
+            <label class="field" for="search">
+              <span>搜索字幕</span>
+              <div class="search-row">
+                <input id="search" type="search" placeholder="输入关键词，例如：结论 / 公式" />
+                <button id="btn-clear-search" type="button" class="ghost-mini hidden">清空</button>
+              </div>
+            </label>
+            <div id="count" class="muted">0 条</div>
+          </section>
+          <section class="panel export-panel">
+            <div class="label">导出</div>
+            <div class="export-scope" role="radiogroup" aria-label="导出范围">
+              <label><input type="radio" name="export-scope" value="all" checked /> <span id="scope-all-label">全部字幕</span></label>
+              <label id="scope-matched-wrap" class="hidden"><input type="radio" name="export-scope" value="matched" /> <span id="scope-matched-label">搜索结果</span></label>
+            </div>
+            <div id="export-count" class="muted">本次 0 条</div>
+            <div class="formats">
+              <label><input type="radio" name="format" value="txt" checked /> TXT</label>
+              <label><input type="radio" name="format" value="markdown" /> Markdown</label>
+              <label><input type="radio" name="format" value="srt" /> SRT</label>
+            </div>
+            <label class="check" id="ts-row">
+              <input id="include-ts" type="checkbox" checked />
+              <span id="ts-label">导出时带时间轴</span>
+            </label>
+            <div class="btn-row">
+              <button id="btn-copy" type="button">复制文本</button>
+              <button id="btn-copy-ts" type="button">复制带时间轴文本</button>
+            </div>
+            <button id="btn-export" class="primary" type="button">导出文件</button>
+          </section>
+          <div class="side-tail">
+            <div id="store-rating" class="store-rating hidden" role="note">
+              <p class="store-rating-title">字幕整理好了 ⭐ 给个好评呗</p>
+              <p class="store-rating-text" data-rating-text>用着顺手的话，去商店点个分。</p>
+              <button type="button" class="store-rating-primary" data-action="rate">去商店评分 ⭐</button>
+              <div class="store-rating-actions">
+                <button type="button" class="store-rating-ghost" data-action="later">下次再说</button>
+                <button type="button" class="store-rating-ghost" data-action="never">别再问了</button>
+              </div>
+            </div>
+            <p class="hint">点击时间可跳转视频。数据只存在这台电脑上。</p>
+            <div id="debug-box" class="debug-box hidden">
+              <div class="debug-bar">
+                <span>调试日志</span>
+                <span id="debug-count">0</span>
+                <button id="debug-copy" type="button">复制</button>
+                <button id="debug-clear" type="button">清空</button>
+              </div>
+              <pre id="debug-log">暂无日志</pre>
+            </div>
+          </div>
         </div>
-      </div>
-      <section class="panel">
-        <div id="video-title" class="video-title">尚未提取字幕</div>
-        <div id="video-sub" class="muted">从扩展弹窗选择字幕轨道并提取。</div>
-        <div id="stale-banner" class="banner hidden">
-          <div id="stale-text">视频已切换。当前列表仍是上一份字幕。</div>
-          <button id="btn-extract-current" type="button">提取当前视频</button>
-        </div>
-        <label id="part-field" class="field hidden">
-          <span>分P</span>
-          <select id="part-select"></select>
-        </label>
-      </section>
-      <section class="panel">
-        <label class="field">
-          <span>搜索字幕</span>
-          <input id="search" type="search" placeholder="输入关键词，例如：结论 / 公式" />
-        </label>
-        <div id="count" class="muted">0 条</div>
-      </section>
-      <section class="panel">
-        <div class="label">导出</div>
-        <div class="formats">
-          <label><input type="radio" name="format" value="txt" checked /> TXT</label>
-          <label><input type="radio" name="format" value="markdown" /> Markdown</label>
-          <label><input type="radio" name="format" value="srt" /> SRT</label>
-        </div>
-        <label class="check"><input id="include-ts" type="checkbox" checked /> 导出时带时间轴</label>
-        <div class="btn-row">
-          <button id="btn-copy" type="button">复制文本</button>
-          <button id="btn-copy-ts" type="button">复制时间轴</button>
-        </div>
-        <button id="btn-export" class="primary" type="button">导出文件</button>
-      </section>
-      <div class="side-tail">
-      <div id="store-rating" class="store-rating hidden" role="note">
-        <p class="store-rating-title">字幕整理好了 ⭐ 给个好评呗</p>
-        <p class="store-rating-text" data-rating-text>用着顺手的话，去商店点个分。</p>
-        <button type="button" class="store-rating-primary" data-action="rate">去商店评分 ⭐</button>
-        <div class="store-rating-actions">
-          <button type="button" class="store-rating-ghost" data-action="later">下次再说</button>
-          <button type="button" class="store-rating-ghost" data-action="never">别再问了</button>
-        </div>
-      </div>
-      <p class="hint">时间轴只作对照，不会改播放进度。数据只存在这台电脑上。</p>
-      <div id="debug-box" class="debug-box hidden">
-        <div class="debug-bar">
-          <span>调试日志</span>
-          <span id="debug-count">0</span>
-          <button id="debug-copy" type="button">复制</button>
-          <button id="debug-clear" type="button">清空</button>
-        </div>
-        <pre id="debug-log">暂无日志</pre>
-      </div>
-      </div>
-      <footer class="promo-footer">
-        <div id="promo-stats" class="promo-stats hidden"></div>
-        <div class="promo-links">
-          <a id="link-faq" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">常见问题</a>
-          <a id="link-privacy" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
-          <button type="button" class="promo-link" data-sheet="notice">公告</button>
-          <button type="button" class="promo-link" data-sheet="coop">开发合作</button>
-          <a id="link-feedback" class="promo-feedback" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
-        </div>
-      </footer>
+        <footer class="popup-footer workspace-footer">
+          <div id="promo-stats" class="promo-stats hidden"></div>
+          <p class="popup-footer-line">
+            <button type="button" class="footer-text-link" data-sheet="notice">公告</button>
+            <span class="footer-sep" aria-hidden="true">·</span>
+            <button type="button" class="footer-text-link" data-sheet="coop">开发合作</button>
+            <span class="footer-sep" aria-hidden="true">·</span>
+            <a id="link-faq" class="footer-text-link" href="#" target="_blank" rel="noopener noreferrer">常见问题</a>
+            <span class="footer-sep" aria-hidden="true">·</span>
+            <a id="link-privacy" class="footer-text-link" href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
+          </p>
+          <a id="link-feedback" class="popup-footer-email" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
+        </footer>
       </div>
       <div id="page" class="promo-page hidden">
         <button id="page-back" class="promo-page-back" type="button">返回工作台</button>
@@ -94,9 +110,12 @@
       <div id="empty" class="empty">
         <strong>还没有字幕</strong>
         <p>打开 B站视频页，点击扩展图标，选择字幕轨道后提取。</p>
+        <button id="empty-clear" type="button" class="ghost-mini hidden">清空搜索</button>
       </div>
       <div id="list-wrap" class="list-wrap hidden">
-        <div id="list" class="list" role="list"></div>
+        <div id="list-spacer" class="list-spacer">
+          <div id="list" class="list" role="list"></div>
+        </div>
       </div>
     </main>
   </div>

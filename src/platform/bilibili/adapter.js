@@ -13,7 +13,7 @@ function normalizeTrack(item, index = 0) {
   const id = String(pick(item, ['id', 'id_str', 'subtitle_id']) ?? `${item.lan || 'track'}-${index}`);
   const lang = String(pick(item, ['lan', 'lang', 'language']) || 'und');
   const label = String(pick(item, ['lan_doc', 'label', 'name']) || lang);
-  const url = absoluteUrl(pick(item, ['subtitle_url', 'subtitleUrl', 'url']) || '');
+  const url = absoluteUrl(pick(item, ['subtitle_url', 'subtitle_url_v2', 'subtitleUrl', 'url']) || '');
   return {
     id,
     lang,
@@ -112,7 +112,53 @@ export function playerApiUrl(context) {
   if (context.bvid) params.set('bvid', context.bvid);
   if (context.aid) params.set('aid', String(context.aid));
   if (context.cid) params.set('cid', String(context.cid));
+  params.set('fnver', '0');
+  params.set('fnval', '16');
+  params.set('platform', 'pc');
   return `https://api.bilibili.com/x/player/v2?${params.toString()}`;
+}
+
+export function mergeContextFromPlayerPayload(context, payload) {
+  const data = payload?.data || payload || {};
+  const next = { ...context };
+  const payloadCid = Number(data.cid);
+  const payloadAid = Number(data.aid);
+  const payloadBvid = String(data.bvid || '');
+  if (payloadBvid) next.bvid = payloadBvid;
+  if (Number.isFinite(payloadAid) && payloadAid > 0) next.aid = payloadAid;
+  if (Number.isFinite(payloadCid) && payloadCid > 0) next.cid = payloadCid;
+  if (next.bvid && next.cid) next.staleState = false;
+  return next;
+}
+
+export function contextFromViewData(context, data, href = '') {
+  if (!data || typeof data !== 'object') return context;
+  const pages = Array.isArray(data.pages) ? data.pages : [];
+  const partNo = partFromUrl(href || context.url || '');
+  const current = pages[partNo - 1]
+    || pages.find((page) => Number(page.cid) === Number(context.cid))
+    || pages[0]
+    || {};
+  const id = parseVideoId(href || context.url || '');
+  return {
+    ...context,
+    title: String(context.title || data.title || current.part || ''),
+    bvid: String(data.bvid || context.bvid || (id?.kind === 'bvid' ? id.value : '') || ''),
+    aid: data.aid != null ? Number(data.aid) : context.aid,
+    cid: Number(current.cid || data.cid || context.cid || 0) || undefined,
+    owner: String(context.owner || data.owner?.name || ''),
+    part: pages.length > 1
+      ? `P${current.page || partNo} ${current.part || ''}`.trim()
+      : (context.part || `P${partNo}`),
+    partNo,
+    pageCount: pages.length || context.pageCount || 1,
+    pages: pages.map((page) => ({
+      cid: Number(page.cid),
+      page: Number(page.page || 0),
+      part: String(page.part || '')
+    })),
+    staleState: false
+  };
 }
 
 export function playerPayloadMatches(context, payload) {

@@ -18,7 +18,7 @@ def include(path: Path) -> bool:
     rel = path.relative_to(ROOT)
     if any(part in SKIP_DIRS for part in rel.parts):
         return False
-    if rel.name in SKIP_FILES or rel.name.endswith('.pyc'):
+    if rel.name in SKIP_FILES or rel.name.endswith('.pyc') or rel.suffix.lower() == '.zip':
         return False
     return True
 

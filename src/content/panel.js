@@ -15,7 +15,7 @@ export function mountPanel() {
   toggle.type = 'button';
   toggle.title = '字幕提取助手';
   const icon = document.createElement('img');
-  icon.src = chrome.runtime.getURL('public/icons/icon128.png');
+  icon.src = chrome.runtime.getURL('icons/icon128.png');
   icon.alt = '';
   toggle.appendChild(icon);
 
@@ -26,6 +26,17 @@ export function mountPanel() {
   frame.src = chrome.runtime.getURL('src/popup/popup.html?panel=1');
   frame.title = '字幕提取助手';
   menu.appendChild(frame);
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== frame.contentWindow) return;
+    if (event.data?.type !== 'BSH_PANEL_RESIZE') return;
+    const max = Math.min(640, window.innerHeight - 180);
+    const next = Math.max(360, Math.min(Number(event.data.height) || 0, max));
+    if (next > 0) {
+      frame.style.height = `${next}px`;
+      menu.style.maxHeight = `${max}px`;
+    }
+  });
 
   dock.append(toggle, menu);
   document.documentElement.appendChild(dock);

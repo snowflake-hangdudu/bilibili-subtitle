@@ -1,0 +1,68 @@
+#bsh-workspace {
+  --bsh-workspace-width: 760px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483645;
+  display: flex;
+  flex-direction: column;
+  width: var(--bsh-workspace-width);
+  max-width: calc(100vw - 24px);
+  border-left: 1px solid #e4e4e7;
+  background: #fff;
+  box-shadow: -8px 0 24px rgba(24, 24, 27, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  outline: none;
+}
+
+#bsh-workspace.hidden {
+  display: none !important;
+}
+
+#bsh-workspace .bsh-workspace-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid #eef0f2;
+  background: #fff;
+}
+
+#bsh-workspace .bsh-workspace-title {
+  color: #18181b;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+#bsh-workspace .bsh-workspace-close {
+  margin-left: auto;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #71717a;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#bsh-workspace .bsh-workspace-close:hover,
+#bsh-workspace .bsh-workspace-close:focus-visible {
+  background: #f2f4f7;
+  color: #18181b;
+  outline: 2px solid #00aeec;
+  outline-offset: 1px;
+}
+
+#bsh-workspace iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+}

@@ -44,7 +44,13 @@ export function bindDebug(root = document) {
   const logEl = box.querySelector('#debug-log');
   const countEl = box.querySelector('#debug-count');
   const copyEl = box.querySelector('#debug-copy');
+  const toggleEl = box.querySelector('#debug-toggle');
   const lines = [];
+
+  function setCollapsed(collapsed) {
+    box.classList.toggle('is-collapsed', collapsed);
+    toggleEl?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
 
   function render() {
     if (logEl) logEl.textContent = lines.join('\n') || '暂无日志';
@@ -101,6 +107,10 @@ export function bindDebug(root = document) {
   bindButton(copyEl, () => {
     copy().catch((error) => log('复制失败', error.message || error));
   });
+  bindButton(toggleEl, () => {
+    setCollapsed(!box.classList.contains('is-collapsed'));
+  });
+  setCollapsed(true);
   render();
 
   return {

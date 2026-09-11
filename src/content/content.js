@@ -5,8 +5,6 @@ import { isBilibiliVideoPage } from '../platform/bilibili/ids.js';
 import { tracksFromPlayerPayload } from '../platform/bilibili/adapter.js';
 import { cuesMatchVideo, reconcileContext } from '../features/video-context/detect.js';
 import { aiSubtitleUrlMatches } from '../features/video-context/track-bind.js';
-import { mountPanel } from './panel.js';
-
 const AGENT = 'bsh-agent';
 const CONTENT = 'bsh-content';
 const pending = new Map();
@@ -28,7 +26,6 @@ window.addEventListener('message', (event) => {
   if (!data || data.source !== AGENT || event.source !== window) return;
   if (data.type === 'VIDEO_CHANGED') {
     chrome.runtime.sendMessage({ type: 'VIDEO_CHANGED', context: data.context }).catch(() => {});
-    document.getElementById('bsh-menu')?.querySelector('iframe')?.contentWindow?.postMessage({ type: 'BSH_VIDEO_CHANGED' }, '*');
     return;
   }
   if (!data.id || !pending.has(data.id)) return;
@@ -55,13 +52,20 @@ async function getStatus() {
     context = reconcileContext(location.href, result.context || context);
   }
   if (!context?.bvid && !context?.aid) throw createAppError(ErrorCode.NO_CONTEXT);
-  const tracks = normalizeTracks(result.tracks).filter((track) => aiSubtitleUrlMatches(track.url, context));
-  if (result.loginHint && !tracks.length) throw createAppError(ErrorCode.LOGIN_REQUIRED);
+  const tracks = normalizeTracks(result.tracks)
+    .filter((track) => track.url)
+    .filter((track) => aiSubtitleUrlMatches(track.url, context));
+  if ((result.loginHint || result.needLoginSubtitle) && !tracks.length) {
+    throw createAppError(ErrorCode.LOGIN_REQUIRED, {
+      message: '该视频的字幕需要登录 B 站后才能读取，请先登录并刷新页面。'
+    });
+  }
   return {
     context,
     tracks,
     trackCount: tracks.length,
-    loginHint: Boolean(result.loginHint)
+    loginHint: Boolean(result.loginHint),
+    steps: Array.isArray(result.steps) ? result.steps : []
   };
 }
 
@@ -122,14 +126,21 @@ async function extractSubtitle({ trackId, mergeShortLines }) {
 }
 
 console.info('[BSH] content ready', location.href);
-mountPanel();
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === 'TOGGLE_PANEL') return undefined;
   const run = async () => {
     if (message?.type === 'PING') return { ok: true, href: location.href };
     if (message?.type === 'GET_STATUS') return { ok: true, ...(await getStatus()) };
     if (message?.type === 'EXTRACT') return { ok: true, result: await extractSubtitle(message) };
+    if (message?.type === 'SEEK_VIDEO') {
+      const result = await callAgent('SEEK_VIDEO', { startMs: message.startMs }, 5000);
+      const status = await getStatus().catch(() => null);
+      const expected = message.fingerprint;
+      if (expected && status?.context?.fingerprint && status.context.fingerprint !== expected) {
+        throw createAppError(ErrorCode.NO_CONTEXT, { message: '视频已切换，无法跳转到原字幕时间。' });
+      }
+      return { ok: true, result };
+    }
     return { ok: false, error: toErrorPayload(createAppError(ErrorCode.FETCH_FAILED, { message: '未知请求' })) };
   };
   run().then(sendResponse).catch((error) => sendResponse({ ok: false, error: toErrorPayload(error) }));

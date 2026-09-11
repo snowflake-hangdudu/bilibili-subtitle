@@ -86,33 +86,16 @@ export function bindPromoSheets({ shell, home, page, back, title, date, body, ge
   const els = { title, date, body };
   const frame = shell || home?.parentElement;
 
-  function unlockHeight() {
-    if (!frame) return;
-    frame.classList.remove('is-page');
-    frame.style.height = '';
-    frame.style.minHeight = '';
-  }
-
-  function lockHeight() {
-    if (!frame || frame.classList.contains('is-page')) return;
-    const height = Math.round(frame.getBoundingClientRect().height);
-    if (height > 0) {
-      frame.style.height = `${height}px`;
-      frame.style.minHeight = `${height}px`;
-    }
-    frame.classList.add('is-page');
-  }
-
   function showHome() {
     page.classList.add('hidden');
-    home.classList.remove('hidden');
-    unlockHeight();
+    home?.classList.remove('hidden');
+    frame?.classList.remove('is-page');
   }
 
   async function openSheet(key) {
-    lockHeight();
     renderInfoSheet(els, key, getContent()?.[key]);
-    home.classList.add('hidden');
+    frame?.classList.add('is-page');
+    // 不隐藏 home，避免绝对定位页在容器塌缩后变成空白
     page.classList.remove('hidden');
     page.scrollTop = 0;
     const next = await loadContent();

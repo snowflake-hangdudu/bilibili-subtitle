@@ -8,81 +8,135 @@
   <link rel="stylesheet" href="../shared/promo.css" />
   <link rel="stylesheet" href="popup.css" />
 </head>
-<body>
-  <script>if (new URLSearchParams(location.search).has('panel')) document.documentElement.classList.add('is-panel');</script>
+<body data-theme="bilibili">
   <div class="wrap">
     <div id="home" class="home">
-    <header class="hero">
-      <div class="brand-row">
-        <img class="brand-icon" src="../../public/icons/icon32.png" alt="" />
-        <div>
-          <div class="brand">字幕提取助手 <span class="version">v1.0</span></div>
-          <p>把已有字幕变成可搜索、可导出的学习资料</p>
+      <header class="popup-header">
+        <img class="popup-icon" src="../../icons/icon48.png?v=4" alt="" />
+        <div class="popup-header-text">
+          <h1>B站字幕提取助手</h1>
+          <span id="popup-version" class="popup-version"></span>
         </div>
-      </div>
-    </header>
+        <button id="btn-settings" type="button" class="header-link">设置</button>
+      </header>
 
-    <div class="flow" aria-label="使用步骤">
-      <span><b>1</b>识别</span><i></i>
-      <span><b>2</b>提取</span><i></i>
-      <span><b>3</b>整理导出</span>
+      <main class="popup-body">
+        <div id="flow" class="flow" aria-hidden="true">
+          <span class="flow-step is-active"><b>1</b>识别</span>
+          <i></i>
+          <span class="flow-step" data-flow="extract"><b>2</b>提取</span>
+          <i></i>
+          <span class="flow-step" data-flow="export"><b>3</b>整理导出</span>
+        </div>
+
+        <section id="state-card" class="card state-card">
+          <div class="state-row">
+            <span id="state-dot" class="dot pulse"></span>
+            <div>
+              <strong id="state-title">正在识别当前页面…</strong>
+              <p id="state-desc">打开 B站视频页后，我会检测可用字幕轨道。</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="video-card" class="card video-card hidden">
+          <div id="video-title" class="video-title" title=""></div>
+          <div id="video-sub" class="video-sub"></div>
+          <label id="track-field" class="field" for="track-select">
+            <span>字幕轨道</span>
+            <select id="track-select" aria-label="字幕轨道"></select>
+            <p id="track-single" class="track-single hidden"></p>
+            <p id="track-empty" class="track-empty hidden">这个视频没有可提取的字幕轨道</p>
+          </label>
+        </section>
+
+        <div id="extract-actions" class="action-row">
+          <button id="btn-extract" class="primary" type="button" disabled>提取字幕</button>
+        </div>
+        <button id="btn-retry" class="ghost hidden" type="button">重试</button>
+
+        <section id="export-card" class="card export-panel hidden">
+          <div class="export-top">
+            <span id="export-meta" class="export-meta"></span>
+            <button id="btn-workspace" type="button" class="workspace-link">工作台</button>
+          </div>
+          <div class="formats" role="radiogroup" aria-label="导出格式">
+            <label><input type="radio" name="export-format" value="txt" checked /> TXT</label>
+            <label><input type="radio" name="export-format" value="markdown" /> Markdown</label>
+            <label><input type="radio" name="export-format" value="srt" /> SRT</label>
+          </div>
+          <label class="check" id="export-ts-row">
+            <input id="export-include-ts" type="checkbox" checked />
+            <span id="export-ts-label">导出时带时间轴</span>
+          </label>
+          <div class="btn-row">
+            <button id="btn-copy-text" type="button">复制文本</button>
+            <button id="btn-copy-ts" type="button">复制带时间轴文本</button>
+          </div>
+          <div class="action-row">
+            <button id="btn-reextract" class="secondary" type="button">重新提取</button>
+            <button id="btn-export-file" class="primary" type="button">导出文件</button>
+          </div>
+        </section>
+
+        <div id="status" class="status" role="status"></div>
+      </main>
+
+      <div id="debug-box" class="debug-box is-collapsed hidden">
+        <div class="debug-bar">
+          <button id="debug-toggle" type="button" class="debug-toggle" aria-expanded="false">
+            识别日志
+            <span id="debug-count" class="debug-count">0</span>
+          </button>
+          <button id="debug-copy" type="button">复制</button>
+          <button id="debug-clear" type="button">清空</button>
+        </div>
+        <pre id="debug-log">暂无日志</pre>
+      </div>
+
+      <footer class="popup-footer">
+        <div id="promo-stats" class="promo-stats hidden"></div>
+        <div class="promo-links">
+          <a id="link-faq" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">常见问题</a>
+          <a id="link-privacy" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
+          <button type="button" class="promo-link" data-sheet="notice">公告</button>
+          <button type="button" class="promo-link" data-sheet="coop">开发合作</button>
+        </div>
+        <a id="link-feedback" class="popup-footer-email" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
+      </footer>
     </div>
 
-    <section id="state-card" class="card">
-      <div class="state-row">
-        <span id="state-dot" class="dot pulse"></span>
-        <div>
-          <strong id="state-title">正在识别当前页面…</strong>
-          <p id="state-desc">打开 B站视频页后，我会检测可用字幕轨道。</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="video-card" class="card hidden">
-      <div class="video-meta">
-        <div id="video-title" class="video-title"></div>
-        <div id="video-sub" class="video-sub"></div>
-      </div>
-      <label id="track-field" class="field" for="track-select">
-        <span>字幕轨道</span>
-        <select id="track-select"></select>
-        <p id="track-empty" class="track-empty hidden">这个视频没有可提取的字幕轨道</p>
+    <div id="settings-page" class="settings-page hidden">
+      <button id="settings-back" class="promo-page-back" type="button">返回提取</button>
+      <h2 class="settings-title">导出偏好</h2>
+      <label class="field">
+        <span>默认格式</span>
+        <select id="format">
+          <option value="txt">TXT</option>
+          <option value="markdown">Markdown</option>
+          <option value="srt">SRT</option>
+        </select>
       </label>
-    </section>
+      <label class="check"><input id="include-ts" type="checkbox" /> 默认带时间轴（SRT 始终包含时间）</label>
+      <label class="field">
+        <span>时间显示</span>
+        <select id="ts-format">
+          <option value="clock">自动（短视频用 mm:ss）</option>
+          <option value="full">始终 HH:MM:SS</option>
+        </select>
+      </label>
+      <label class="check"><input id="merge-short" type="checkbox" /> 合并过短的相邻字幕</label>
+      <label class="field">
+        <span>文件名模板</span>
+        <input id="filename" type="text" spellcheck="false" />
+        <small class="field-hint">可用变量：{title} {part} {lang} {bvid} {owner}</small>
+        <small id="filename-preview" class="field-hint filename-preview"></small>
+      </label>
+      <button id="save-settings" class="primary" type="button">保存设置</button>
+      <button id="clear-data" class="ghost" type="button">清理本地数据</button>
+      <div id="settings-status" class="status"></div>
+    </div>
 
-    <label class="check merge-row" for="merge-short">
-      <input id="merge-short" type="checkbox" checked />
-      <span class="box">✓</span>
-      <span>合并过短的相邻字幕</span>
-    </label>
-
-    <div id="extract-actions" class="actions">
-      <button id="btn-options" type="button">设置</button>
-      <button id="btn-extract" class="primary" type="button" disabled>提取字幕 <span>→</span></button>
-    </div>
-    <button id="btn-retry" class="ghost hidden" type="button">重试</button>
-    <button id="btn-workspace" class="ghost hidden" type="button">打开字幕工作台</button>
-    <div id="status" class="status" role="status"></div>
-    <div id="debug-box" class="debug-box hidden">
-      <div class="debug-bar">
-        <span>调试日志</span>
-        <span id="debug-count">0</span>
-        <button id="debug-copy" type="button">复制</button>
-        <button id="debug-clear" type="button">清空</button>
-      </div>
-      <pre id="debug-log">暂无日志</pre>
-    </div>
-    <footer class="promo-footer">
-      <div id="promo-stats" class="promo-stats hidden"></div>
-      <div class="promo-links">
-        <a id="link-faq" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">常见问题</a>
-        <a id="link-privacy" class="promo-link" href="#" target="_blank" rel="noopener noreferrer">隐私政策</a>
-        <button type="button" class="promo-link" data-sheet="notice">公告</button>
-        <button type="button" class="promo-link" data-sheet="coop">开发合作</button>
-        <a id="link-feedback" class="promo-feedback" href="mailto:hangdudu0@agent.qq.com?subject=B站字幕提取助手反馈">反馈邮箱：hangdudu0@agent.qq.com</a>
-      </div>
-    </footer>
-    </div>
     <div id="page" class="promo-page hidden">
       <button id="page-back" class="promo-page-back" type="button">返回提取</button>
       <h3 id="info-title" class="promo-page-title"></h3>
